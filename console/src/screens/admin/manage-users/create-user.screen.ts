@@ -5,16 +5,21 @@ import { userApiService } from '../../../services/user.service';
 import { UserRole } from '../../../models/session.model';
 import { CreateUserRequestDto } from '../../../models/user.dto';
 
-const VALID_ROLES: UserRole[] = ['ADMIN', 'MANAGER', 'EMPLOYEE'];
+const ROLE_MAP: Record<string, UserRole> = {
+    '1': 'ADMIN',
+    '2': 'MANAGER',
+    '3': 'EMPLOYEE',
+};
 
 const promptRole = async (): Promise<UserRole | null> => {
-    console.log('  Roles: ADMIN, MANAGER, EMPLOYEE');
-    const input = (await prompt('  Role: ')).trim().toUpperCase() as UserRole;
-    if (!VALID_ROLES.includes(input)) {
-        console.log('  Invalid role. Please enter ADMIN, MANAGER, or EMPLOYEE.');
+    console.log('  Role: (1) Admin  (2) Manager  (3) Employee');
+    const input = (await prompt('  Select: ')).trim();
+    const role = ROLE_MAP[input];
+    if (!role) {
+        console.log('  Invalid selection. Please enter 1, 2, or 3.');
         return null;
     }
-    return input;
+    return role;
 };
 
 export const CreateUserScreen = {

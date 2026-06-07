@@ -10,31 +10,48 @@ const STATUS_INACTIVE = 'Inactive';
 const printUsersTable = (users: UserSummaryDto[]): void => {
     const header = `  ${'ID'.padEnd(5)} ${'Username'.padEnd(20)} ${'Role'.padEnd(10)} Status`;
     const separator = `  ${'─'.repeat(50)}`;
+    const activeCount = users.filter((u) => u.isActive).length;
+    const inactiveCount = users.length - activeCount;
+
     console.log(separator);
     console.log(header);
     console.log(separator);
     for (const user of users) {
         const status = user.isActive ? STATUS_ACTIVE : STATUS_INACTIVE;
-        const tag = user.isActive ? '' : ' [R] Reactivate';
         console.log(
-            `  ${String(user.id).padEnd(5)} ${user.username.padEnd(20)} ${user.role.padEnd(10)} ${status}${tag}`,
+            `  ${String(user.id).padEnd(5)} ${user.username.padEnd(20)} ${user.role.padEnd(10)} ${status}`,
         );
     }
     console.log(separator);
+    console.log(`  Total: ${users.length}   |   Active: ${activeCount}   |   Inactive: ${inactiveCount}`);
 };
 
 const reactivateFlow = async (): Promise<void> => {
-    const input = (await prompt('  Enter user ID or username to reactivate: ')).trim();
+    const input = (await prompt('  Enter User ID to reactivate: ')).trim();
     if (!input) return;
 
     try {
         const user = await userApiService.findByUsernameOrId(input);
+
         if (user.isActive) {
             console.log(`  User '${user.username}' is already active.`);
             return;
         }
+
+        console.log(`\n  User: ${user.fullName} (${user.role}) — currently Inactive`);
+        console.log('');
+        console.log('  Reactivate this account?');
+        console.log('  [Y] Yes     [B] Cancel');
+        const confirm = (await prompt('  Select: ')).trim().toUpperCase();
+
+        if (confirm !== 'Y') {
+            console.log('  Cancelled.');
+            return;
+        }
+
         await userApiService.reactivateUser(user.id);
-        console.log(`  User '${user.username}' has been reactivated.`);
+        console.log(`\n  Account reactivated. ${user.fullName} can now log in.`);
+        console.log('  Note: Previous allocations are NOT restored. Admin must re-allocate manually if needed.');
     } catch (error) {
         console.log(`  Error: ${extractErrorMessage(error)}`);
     }
@@ -53,12 +70,11 @@ export const ViewUsersScreen = {
                 printUsersTable(users);
 
                 const hasInactive = users.some((u: UserSummaryDto) => !u.isActive);
-                if (hasInactive) {
-                    console.log('');
-                    const choice = (await prompt('  Reactivate a user? (Y/N): ')).trim().toUpperCase();
-                    if (choice === 'Y') {
-                        await reactivateFlow();
-                    }
+                console.log('');
+                console.log(hasInactive ? '  [R] Reactivate a user     [B] Back' : '  [B] Back');
+                const choice = (await prompt('  Select: ')).trim().toUpperCase();
+                if (choice === 'R' && hasInactive) {
+                    await reactivateFlow();
                 }
             }
         } catch (error) {
