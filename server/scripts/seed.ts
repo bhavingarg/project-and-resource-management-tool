@@ -35,9 +35,9 @@ async function seed(): Promise<void> {
 
     await connection.execute(
         `INSERT IGNORE INTO users
-       (username, email, password_hash, role, is_active, force_password_change)
-     VALUES (?, ?, ?, 'ADMIN', 1, 1)`,
-        ['admin', 'admin@techserve.local', passwordHash],
+           (full_name, username, email, password_hash, role, is_active, force_password_change)
+         VALUES (?, ?, ?, ?, 'ADMIN', 1, 1)`,
+        ['Administrator', 'admin', 'admin@techserve.local', passwordHash],
     );
 
     for (const [key, value] of SYSTEM_CONFIG_DEFAULTS) {

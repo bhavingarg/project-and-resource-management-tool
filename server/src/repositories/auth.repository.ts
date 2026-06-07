@@ -9,6 +9,7 @@ export interface IAuthRepository {
 
 interface UserRow extends RowDataPacket {
     id: number;
+    full_name: string;
     username: string;
     email: string;
     password_hash: string;
@@ -19,6 +20,7 @@ interface UserRow extends RowDataPacket {
 
 const mapRowToUser = (row: UserRow): User => ({
     id: row.id,
+    fullName: row.full_name,
     username: row.username,
     email: row.email,
     passwordHash: row.password_hash,
@@ -31,7 +33,7 @@ export const AuthRepository: IAuthRepository = {
     async findActiveUserByUsername(username: string): Promise<User | null> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<UserRow[]>(
-            `SELECT id, username, email, password_hash, role, is_active, force_password_change
+            `SELECT id, full_name, username, email, password_hash, role, is_active, force_password_change
              FROM users
              WHERE username = ? AND is_active = 1`,
             [username],
