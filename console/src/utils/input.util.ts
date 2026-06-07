@@ -1,8 +1,22 @@
 import * as readline from 'readline';
+import { Writable } from 'stream';
+
+const isInteractive = Boolean(process.stdin.isTTY);
+
+let outputMuted = false;
+const maskedOutput = new Writable({
+    write(chunk, _encoding, callback) {
+        if (!outputMuted) {
+            process.stdout.write(chunk);
+        }
+        callback();
+    },
+});
 
 const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: maskedOutput,
+    terminal: isInteractive,
 });
 
 export const prompt = (question: string): Promise<string> => {
@@ -16,36 +30,13 @@ export const prompt = (question: string): Promise<string> => {
 export const promptHidden = (question: string): Promise<string> => {
     return new Promise((resolve) => {
         process.stdout.write(`${question}: `);
+        outputMuted = true;
 
-        process.stdin.setRawMode(true);
-        process.stdin.resume();
-        process.stdin.setEncoding('utf8');
-
-        let input = '';
-
-        const onData = (char: string): void => {
-            if (char === '\r' || char === '\n') {
-                process.stdin.setRawMode(false);
-                process.stdin.pause();
-                process.stdin.removeListener('data', onData);
-                process.stdout.write('\n');
-                resolve(input);
-            } else if (char === '\u0003') {
-                process.exit();
-            } else if (char === '\u007f') {
-                if (input.length > 0) {
-                    input = input.slice(0, -1);
-                    process.stdout.clearLine(0);
-                    process.stdout.cursorTo(0);
-                    process.stdout.write(`${question}: ${'*'.repeat(input.length)}`);
-                }
-            } else {
-                input += char;
-                process.stdout.write('*');
-            }
-        };
-
-        process.stdin.on('data', onData);
+        rl.question('', (answer) => {
+            outputMuted = false;
+            process.stdout.write('\n');
+            resolve(answer.trim());
+        });
     });
 };
 

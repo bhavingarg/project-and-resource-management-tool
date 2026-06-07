@@ -9,7 +9,7 @@ const requireEnv = (key: string): string => {
 export const AppConfig = {
     port: Number(process.env.PORT) || 3001,
     jwtSecret: requireEnv('JWT_SECRET'),
-    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
+    jwtExpiresInSeconds: Number(process.env.JWT_EXPIRES_IN_SECONDS) || 28800, // 28800 = 8 hours
     maxWeeklyHours: Number(process.env.MAX_WEEKLY_HOURS) || 40,
     schedulerIntervalHours: Number(process.env.SCHEDULER_INTERVAL_HOURS) || 4,
 };
