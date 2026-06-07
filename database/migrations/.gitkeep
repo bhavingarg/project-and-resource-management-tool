@@ -1,0 +1,8 @@
+# Migration files go here.
+# Naming convention: NNN_short_description.sql
+# Example: 003_add_index_on_allocations.sql
+#
+# Rules:
+#   1. Never edit a migration file once it has been run.
+#   2. Always update schema.sql to match the new state.
+#   3. Run each file once manually in the MySQL client.

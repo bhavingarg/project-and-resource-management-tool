@@ -1,0 +1,2 @@
+# Services contain all business logic.
+# They depend on repositories, never on Express objects.
