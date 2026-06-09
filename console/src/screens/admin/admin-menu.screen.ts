@@ -2,6 +2,7 @@ import { display, formatDateTime } from '../../utils/display.util';
 import { prompt } from '../../utils/input.util';
 import { sessionStore } from '../../services/session.store';
 import { ManageUsersScreen } from './manage-users.screen';
+import { ManageEmployeesScreen } from './manage-employees.screen';
 
 export const AdminMenuScreen = {
     async show(username: string): Promise<void> {
@@ -20,6 +21,8 @@ export const AdminMenuScreen = {
 
             switch (option) {
                 case '1':
+                    await ManageEmployeesScreen.show();
+                    break;
                 case '2':
                 case '3':
                     console.log('\nComing soon...\n');

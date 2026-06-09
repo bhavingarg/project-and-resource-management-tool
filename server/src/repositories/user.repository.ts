@@ -10,6 +10,7 @@ export interface IUserRepository {
     existsByUsername(username: string): Promise<boolean>;
     existsByEmail(email: string): Promise<boolean>;
     create(fullName: string, email: string, username: string, passwordHash: string, role: UserRole): Promise<number>;
+    deleteById(userId: number): Promise<void>;
     updatePassword(userId: number, passwordHash: string): Promise<void>;
     setActiveStatus(userId: number, isActive: boolean): Promise<void>;
 }
@@ -86,6 +87,11 @@ export const UserRepository: IUserRepository = {
             [fullName, email, username, passwordHash, role],
         );
         return (result as { insertId: number }).insertId;
+    },
+
+    async deleteById(userId: number): Promise<void> {
+        const pool: Pool = DatabaseConnection.getPool();
+        await pool.execute(`DELETE FROM users WHERE id = ?`, [userId]);
     },
 
     async updatePassword(userId: number, passwordHash: string): Promise<void> {
