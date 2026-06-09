@@ -37,4 +37,9 @@ export const apiClient = {
         const response: AxiosResponse<T> = await httpClient.patch(path, body);
         return response.data;
     },
+
+    async delete<T>(path: string): Promise<T> {
+        const response: AxiosResponse<T> = await httpClient.delete(path);
+        return response.data;
+    },
 };

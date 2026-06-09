@@ -46,6 +46,9 @@ export const CreateUserScreen = {
         try {
             const user = await userApiService.createUser(dto);
             console.log(`\n  User '${user.username}' (ID: ${user.id}) created successfully.`);
+            if (role !== 'ADMIN') {
+                console.log('  Employee profile created. Set Department and Designation via Manage Employees > Update Employee.');
+            }
             console.log('  The user will be prompted to change their password on first login.');
         } catch (error) {
             console.log(`\n  Error: ${extractErrorMessage(error)}`);

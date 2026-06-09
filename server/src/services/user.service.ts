@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import { CreateUserRequestDto, UserSummaryDto, ResetPasswordRequestDto } from '../models/user.dto';
 import { IUserRepository } from '../repositories/user.repository';
+import { IEmployeeRepository } from '../repositories/employee.repository';
 import { IAuthService } from './auth.service';
+import { UserRole } from '../models/user.model';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -17,6 +19,7 @@ export interface IUserService {
 export const createUserService = (
     userRepository: IUserRepository,
     authService: IAuthService,
+    employeeRepository: IEmployeeRepository,
 ): IUserService => ({
     async createUser(dto: CreateUserRequestDto): Promise<UserSummaryDto> {
         const usernameExists = await userRepository.existsByUsername(dto.username);
@@ -34,6 +37,8 @@ export const createUserService = (
             throw new Error(passwordError);
         }
 
+        const requiresEmployeeProfile = dto.role === UserRole.MANAGER || dto.role === UserRole.EMPLOYEE;
+
         const passwordHash = await bcrypt.hash(dto.temporaryPassword, BCRYPT_ROUNDS);
         const newUserId = await userRepository.create(
             dto.fullName,
@@ -42,6 +47,15 @@ export const createUserService = (
             passwordHash,
             dto.role,
         );
+
+        if (requiresEmployeeProfile) {
+            try {
+                await employeeRepository.createForUser(newUserId, dto.fullName, dto.email);
+            } catch (error) {
+                await userRepository.deleteById(newUserId);
+                throw error;
+            }
+        }
 
         return {
             id: newUserId,
@@ -89,6 +103,12 @@ export const createUserService = (
             throw new Error('User is already inactive');
         }
         await userRepository.setActiveStatus(userId, false);
+
+        const employee = await employeeRepository.findByUserId(userId);
+        if (employee && employee.isActive) {
+            await employeeRepository.endActiveAllocations(employee.id);
+            await employeeRepository.deactivate(employee.id);
+        }
     },
 
     async reactivateUser(userId: number): Promise<void> {
@@ -100,5 +120,10 @@ export const createUserService = (
             throw new Error('User is already active');
         }
         await userRepository.setActiveStatus(userId, true);
+
+        const employee = await employeeRepository.findByUserId(userId);
+        if (employee && !employee.isActive) {
+            await employeeRepository.reactivate(employee.id);
+        }
     },
 });
