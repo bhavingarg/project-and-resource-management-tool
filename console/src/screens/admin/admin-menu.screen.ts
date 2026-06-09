@@ -3,6 +3,8 @@ import { prompt } from '../../utils/input.util';
 import { sessionStore } from '../../services/session.store';
 import { ManageUsersScreen } from './manage-users.screen';
 import { ManageEmployeesScreen } from './manage-employees.screen';
+import { ManageProjectsScreen } from './manage-projects.screen';
+import { ViewAllocationsScreen } from './view-allocations.screen';
 
 export const AdminMenuScreen = {
     async show(username: string): Promise<void> {
@@ -24,8 +26,10 @@ export const AdminMenuScreen = {
                     await ManageEmployeesScreen.show();
                     break;
                 case '2':
+                    await ManageProjectsScreen.show();
+                    break;
                 case '3':
-                    console.log('\nComing soon...\n');
+                    await ViewAllocationsScreen.show();
                     break;
                 case '4':
                     await ManageUsersScreen.show();
