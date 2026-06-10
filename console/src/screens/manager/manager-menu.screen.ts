@@ -1,6 +1,9 @@
 import { display, formatDateTime } from '../../utils/display.util';
 import { prompt } from '../../utils/input.util';
 import { sessionStore } from '../../services/session.store';
+import { ResourceDashboardScreen } from './resource-dashboard.screen';
+import { AllocateResourceScreen } from './allocate-resource.screen';
+import { MyProjectsScreen } from './my-projects.screen';
 
 export const ManagerMenuScreen = {
     async show(username: string): Promise<void> {
@@ -19,8 +22,14 @@ export const ManagerMenuScreen = {
 
             switch (option) {
                 case '1':
+                    await ResourceDashboardScreen.show();
+                    break;
                 case '2':
+                    await AllocateResourceScreen.show();
+                    break;
                 case '3':
+                    await MyProjectsScreen.show();
+                    break;
                 case '4':
                 case '5':
                     console.log('\nComing soon...\n');
