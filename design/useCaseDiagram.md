@@ -13,43 +13,43 @@ flowchart LR
 
     subgraph AUTH["Authentication"]
         UC_Login(["Login"])
-        UC_ChangePwd(["Change Password<br/>(forced on first login)"])
+        UC_ChangePwd(["Change Password"])
         UC_Logout(["Logout"])
     end
 
     subgraph ADM["Master Data & System Administration"]
-        UC_ManageUsers(["Manage User Accounts<br/>create · reset password ·<br/>deactivate · reactivate"])
-        UC_ManageEmployees(["Manage Employees<br/>view · update · deactivate"])
-        UC_ManageSkills(["Manage Employee Skills<br/>add · update proficiency · remove"])
+        UC_ManageUsers(["Manage User Accounts"])
+        UC_ManageEmployees(["Manage Employees"])
+        UC_ManageSkills(["Manage Employee Skills"])
         UC_AssignManager(["Assign Manager to Employee"])
-        UC_ManageProjects(["Manage Projects<br/>create · view · update"])
-        UC_ManageMilestones(["Manage Milestones<br/>add · update status"])
-        UC_ViewAllAlloc(["View All Allocations<br/>(company-wide)"])
-        UC_SysConfig(["Configure System<br/>LLM key · provider ·<br/>scheduler interval · max weekly hours"])
+        UC_ManageProjects(["Manage Projects"])
+        UC_ManageMilestones(["Manage Milestones"])
+        UC_ViewAllAlloc(["View All Allocations"])
+        UC_SysConfig(["Configure System"])
     end
 
-    subgraph MGR["Resource & Project Management (own team / own projects only)"]
-        UC_Dashboard(["View Resource Dashboard<br/>bench · partial · fully allocated"])
-        UC_DrillDown(["Drill into Employee Detail<br/>skills · allocations · activity tags"])
-        UC_Allocate(["Allocate Resource<br/>utilisation % + date range"])
+    subgraph MGR["Resource & Project Management"]
+        UC_Dashboard(["View Resource Dashboard"])
+        UC_DrillDown(["View Employee Detail"])
+        UC_Allocate(["Allocate Resource"])
         UC_AIFind(["Find Resource using AI"])
         UC_EndAlloc(["End an Allocation"])
-        UC_MyProjects(["View My Projects & Health<br/>milestones · allocated resources"])
+        UC_MyProjects(["View My Projects"])
         UC_RiskSummary(["Get AI Risk Summary"])
         UC_SkillMatch(["AI Skill Match"])
-        UC_TeamTS(["View Team Timesheets<br/>incl. missed weeks"])
+        UC_TeamTS(["View Team Timesheets"])
     end
 
     subgraph EMP["Employee Self-Service"]
-        UC_SubmitTS(["Submit Weekly Timesheet<br/>hours per allocated project"])
+        UC_SubmitTS(["Submit Weekly Timesheet"])
         UC_TagWork(["Tag Work Activities"])
-        UC_MyTS(["View My Timesheets<br/>+ week detail"])
+        UC_MyTS(["View My Timesheets"])
         UC_MyAlloc(["View My Allocations"])
     end
 
     subgraph SYS["Automated Jobs"]
-        UC_Recompute(["Recompute Utilisation &<br/>Employee Status"])
-        UC_FlagHealth(["Flag Project Health<br/>ON_TRACK · ATTENTION · AT_RISK"])
+        UC_Recompute(["Recompute Employee Status"])
+        UC_FlagHealth(["Flag Project Health"])
         UC_MarkMissed(["Mark Missed Timesheets"])
     end
 
@@ -68,15 +68,10 @@ flowchart LR
 
     Employee --- UC_SubmitTS & UC_MyTS & UC_MyAlloc
 
-    UC_ChangePwd -.->|extend| UC_Login
-    UC_DrillDown -.->|extend| UC_Dashboard
-    UC_AIFind -.->|extend| UC_Allocate
-    UC_SubmitTS -.->|include| UC_TagWork
-
     Scheduler --- UC_Recompute & UC_FlagHealth & UC_MarkMissed
-    UC_AIFind -.-> LLM
-    UC_SkillMatch -.-> LLM
-    UC_RiskSummary -.-> LLM
+    UC_AIFind --- LLM
+    UC_SkillMatch --- LLM
+    UC_RiskSummary --- LLM
 ```
 
 Key rules attached to use cases (enforced server-side):
