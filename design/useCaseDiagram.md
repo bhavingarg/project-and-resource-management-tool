@@ -68,6 +68,11 @@ flowchart LR
 
     Employee --- UC_SubmitTS & UC_MyTS & UC_MyAlloc
 
+    UC_ChangePwd -.->|extend| UC_Login
+    UC_DrillDown -.->|extend| UC_Dashboard
+    UC_AIFind -.->|extend| UC_Allocate
+    UC_SubmitTS -.->|include| UC_TagWork
+
     Scheduler --- UC_Recompute & UC_FlagHealth & UC_MarkMissed
     UC_AIFind --- LLM
     UC_SkillMatch --- LLM
