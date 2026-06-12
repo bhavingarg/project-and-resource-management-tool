@@ -4,8 +4,10 @@ import { extractErrorMessage } from '../../utils/error.util';
 import { parseInputDate, formatDisplayDate } from '../../utils/date.util';
 import { managerApiService } from '../../services/manager.service';
 import { allocationApiService } from '../../services/allocation.service';
-import { ManagerProjectDto, TeamMemberDto } from '../../models/manager.dto';
+import { aiApiService } from '../../services/ai.service';
+import { ManagerProjectDto } from '../../models/manager.dto';
 import { ProjectAllocationDto } from '../../models/allocation.dto';
+import { SkillMatchResultDto } from '../../models/ai.dto';
 
 const MENU_ITEMS = [
     '1. Find resource using AI (recommended)',
@@ -68,17 +70,37 @@ const setAndConfirmAllocation = async (projectId: number, resourceUserId: number
     console.log('\n  Allocation saved. ✓');
 };
 
-const printCandidates = (candidates: TeamMemberDto[]): void => {
-    console.log('\n  ──────────────────────────────────────────────');
-    console.log('  AVAILABLE TEAM RESOURCES');
-    console.log('  (AI-assisted ranking arrives with the AI Assistant feature)');
-    console.log('  ──────────────────────────────────────────────');
-    console.log(`  ${'#'.padEnd(4)} ${'ID'.padEnd(6)} ${'Name'.padEnd(18)} ${'Free'.padEnd(8)} Skills`);
-    candidates.forEach((member, index) => {
-        const free = `${100 - member.utilisationPercent}%`;
-        const skills = member.skills.length > 0 ? member.skills.join(', ') : '(none)';
-        console.log(`  ${String(index + 1).padEnd(4)} ${String(member.userId).padEnd(6)} ${member.fullName.padEnd(18)} ${free.padEnd(8)} ${skills}`);
+const wrapReason = (text: string): string => {
+    const indent = ' '.repeat(20);
+    const width = 58;
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+        if (current.length + word.length + 1 > width && current.length > 0) {
+            lines.push(current);
+            current = word;
+        } else {
+            current = current.length > 0 ? `${current} ${word}` : word;
+        }
+    }
+    if (current.length > 0) lines.push(current);
+    return lines.join(`\n${indent}`);
+};
+
+const printAiMatches = (matches: SkillMatchResultDto[]): void => {
+    console.log('\n  ┌─────────────────────────────────────────────────────┐');
+    console.log('  │              AI Recommended Resources               │');
+    console.log('  └─────────────────────────────────────────────────────┘');
+    matches.forEach((match, i) => {
+        const availBar = '█'.repeat(Math.round(match.freePercent / 10)) + '░'.repeat(10 - Math.round(match.freePercent / 10));
+        console.log(`\n  ${i + 1}. ${match.fullName}`);
+        console.log(`     Availability : ${availBar} ${match.freePercent}% free`);
+        console.log(`     Manager      : ${match.currentManager ?? '(unassigned)'}`);
+        console.log(`     Skills       : ${wrapReason(match.skills.length > 0 ? match.skills.join(', ') : '(none listed)')}`);
+        console.log(`     Reason       : ${wrapReason(match.reason)}`);
     });
+    console.log('\n  ─────────────────────────────────────────────────────');
 };
 
 const findResourceWithAiFlow = async (): Promise<void> => {
@@ -86,29 +108,37 @@ const findResourceWithAiFlow = async (): Promise<void> => {
     if (!project) return;
 
     console.log('\n  Describe your requirement (e.g. "Java backend developer for 3 months"):');
-    await prompt('  > ');
+    const requirement = (await prompt('  > ')).trim();
+    if (!requirement) {
+        console.log('  Requirement cannot be empty.');
+        return;
+    }
 
-    const dashboard = await managerApiService.getResourceDashboard();
-    const candidates = [...dashboard.bench, ...dashboard.active]
-        .filter((member) => member.utilisationPercent < 100)
-        .sort((a, b) => a.utilisationPercent - b.utilisationPercent);
+    console.log('\n  Asking AI...');
+    let result;
+    try {
+        result = await aiApiService.skillMatch(requirement, project.name);
+    } catch (error) {
+        console.log(`\n  Error: ${extractErrorMessage(error)}`);
+        return;
+    }
 
-    if (candidates.length === 0) {
+    if (result.matches.length === 0) {
         console.log('\n  No team members currently have free capacity.');
         return;
     }
 
-    printCandidates(candidates);
+    printAiMatches(result.matches);
     const selection = (await prompt('\n  Select employee (enter #, or 0 to cancel)')).trim();
     const index = Number(selection) - 1;
-    if (Number.isNaN(index) || index < 0 || index >= candidates.length) {
+    if (Number.isNaN(index) || index < 0 || index >= result.matches.length) {
         console.log('  Cancelled.');
         return;
     }
 
-    const member = candidates[index];
-    console.log(`\n  ── ${member.fullName} (${100 - member.utilisationPercent}% free) ──`);
-    await setAndConfirmAllocation(project.id, member.userId);
+    const match = result.matches[index];
+    console.log(`\n  ── ${match.fullName} (${match.freePercent}% free) ──`);
+    await setAndConfirmAllocation(project.id, match.userId);
 };
 
 const allocateDirectlyFlow = async (): Promise<void> => {

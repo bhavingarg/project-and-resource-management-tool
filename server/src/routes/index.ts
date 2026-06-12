@@ -6,6 +6,8 @@ import { projectRouter } from './project.routes';
 import { allocationRouter } from './allocation.routes';
 import { managerRouter } from './manager.routes';
 import { timesheetRouter } from './timesheet.routes';
+import { aiRouter } from './ai.routes';
+import { systemConfigRouter } from './system-config.routes';
 
 export const router = Router();
 
@@ -20,3 +22,5 @@ router.use('/projects', projectRouter);
 router.use('/allocations', allocationRouter);
 router.use('/manager', managerRouter);
 router.use('/timesheets', timesheetRouter);
+router.use('/ai', aiRouter);
+router.use('/system-config', systemConfigRouter);

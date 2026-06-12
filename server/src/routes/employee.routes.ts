@@ -4,10 +4,11 @@ import { requireAuth } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { AllocationRepository } from '../repositories/allocation.repository';
 import { createEmployeeService } from '../services/employee.service';
 import { UserRole } from '../models/user.model';
 
-const employeeService = createEmployeeService(EmployeeRepository, UserRepository);
+const employeeService = createEmployeeService(EmployeeRepository, UserRepository, AllocationRepository);
 const employeeController = createEmployeeController(employeeService);
 
 const adminOnly = [requireAuth, requireRole(UserRole.ADMIN)];

@@ -5,6 +5,7 @@ import { formatDisplayDate } from '../../utils/date.util';
 import { managerApiService } from '../../services/manager.service';
 import { ManagerProjectDto, ManagerProjectDetailDto } from '../../models/manager.dto';
 import { formatHealth } from './manager-format';
+import { showRiskSummaryForProject } from './risk-summary.screen';
 
 const printProjectsList = (projects: ManagerProjectDto[]): void => {
     console.log(`\n  ${'#'.padEnd(4)} ${'Project'.padEnd(20)} ${'End Date'.padEnd(12)} Health`);
@@ -63,8 +64,7 @@ const showProjectDetail = async (projectId: number): Promise<void> => {
 
         if (choice === 'B') return;
         if (choice === 'A') {
-            console.log('\n  AI Risk Summary will be available with the AI Assistant feature.');
-            await prompt('\n  Press Enter to continue');
+            await showRiskSummaryForProject(detail.id, detail.name);
         } else {
             console.log('  Invalid option.');
         }

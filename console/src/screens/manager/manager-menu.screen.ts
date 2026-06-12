@@ -5,6 +5,7 @@ import { ResourceDashboardScreen } from './resource-dashboard.screen';
 import { AllocateResourceScreen } from './allocate-resource.screen';
 import { MyProjectsScreen } from './my-projects.screen';
 import { ManagerTimesheetsScreen } from './timesheets.screen';
+import { AiAssistantScreen } from './ai-assistant.screen';
 
 export const ManagerMenuScreen = {
     async show(username: string): Promise<void> {
@@ -35,7 +36,7 @@ export const ManagerMenuScreen = {
                     await ManagerTimesheetsScreen.show();
                     break;
                 case '5':
-                    console.log('\nComing soon...\n');
+                    await AiAssistantScreen.show();
                     break;
                 case '6':
                     sessionStore.clearToken();
