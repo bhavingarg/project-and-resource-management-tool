@@ -12,4 +12,8 @@ export const AppConfig = {
     jwtExpiresInSeconds: Number(process.env.JWT_EXPIRES_IN_SECONDS) || 28800, // 8 hours
     maxWeeklyHours: Number(process.env.MAX_WEEKLY_HOURS) || 40,
     schedulerIntervalHours: Number(process.env.SCHEDULER_INTERVAL_HOURS) || 4,
+    geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+    customLlmHost: process.env.CUSTOM_LLM_HOST ?? '',
+    customLlmApiKey: process.env.CUSTOM_LLM_API_KEY ?? '',
+    encryptionKey: requireEnv('ENCRYPTION_KEY'),
 };

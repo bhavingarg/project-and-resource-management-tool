@@ -32,6 +32,7 @@ export interface IAllocationRepository {
     getOverlappingUtilisation(resourceId: number, fromDate: string, toDate: string): Promise<number>;
     create(params: CreateAllocationParams): Promise<number>;
     endById(id: number): Promise<void>;
+    endActiveAllocationsByManager(resourceId: number, managerUserId: number): Promise<void>;
     recomputeResourceStatus(userId: number): Promise<void>;
     findAllByUserId(userId: number): Promise<MyAllocationDto[]>;
 }
@@ -185,6 +186,19 @@ export const AllocationRepository: IAllocationRepository = {
         await pool.execute(
             `UPDATE allocations SET is_active = 0, to_date = CURDATE() WHERE id = ?`,
             [id],
+        );
+    },
+
+    async endActiveAllocationsByManager(resourceId: number, managerUserId: number): Promise<void> {
+        const pool: Pool = DatabaseConnection.getPool();
+        // End all active allocations for this resource on projects owned by the given manager
+        await pool.execute(
+            `UPDATE allocations a
+             JOIN projects p ON p.id = a.project_id
+             SET a.is_active = 0, a.to_date = CURDATE()
+             WHERE a.resource_id = ? AND p.manager_id = ?
+               AND a.is_active = 1 AND a.to_date >= CURDATE()`,
+            [resourceId, managerUserId],
         );
     },
 

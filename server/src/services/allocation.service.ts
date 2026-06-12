@@ -71,9 +71,6 @@ export const createAllocationService = (
             if (!resource.isActive) {
                 throw new Error('Resource is inactive');
             }
-            if (!resource.reportingToId || resource.reportingToId !== managerUserId) {
-                throw new Error('You can only allocate resources from your own team');
-            }
 
             const existingUtilisation = await allocationRepository.getOverlappingUtilisation(
                 dto.resourceUserId,

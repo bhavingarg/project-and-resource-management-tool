@@ -1,5 +1,6 @@
 ﻿import { IEmployeeRepository } from '../repositories/employee.repository';
 import { IUserRepository } from '../repositories/user.repository';
+import { IAllocationRepository } from '../repositories/allocation.repository';
 import {
     EmployeeSummaryDto,
     EmployeeDetailDto,
@@ -31,6 +32,7 @@ export interface IEmployeeService {
 export const createEmployeeService = (
     employeeRepository: IEmployeeRepository,
     userRepository: IUserRepository,
+    allocationRepository: IAllocationRepository,
 ): IEmployeeService => ({
     async getAllEmployees(): Promise<EmployeeSummaryDto[]> {
         return employeeRepository.findAll();
@@ -87,6 +89,11 @@ export const createEmployeeService = (
         }
         if (manager.role !== UserRole.MANAGER && manager.role !== UserRole.ADMIN) {
             throw new Error('Assigned manager must have MANAGER or ADMIN role');
+        }
+        // End all active allocations under the current (previous) manager before reassigning
+        if (employee.reportingToId && employee.reportingToId !== managerId) {
+            await allocationRepository.endActiveAllocationsByManager(userId, employee.reportingToId);
+            await allocationRepository.recomputeResourceStatus(userId);
         }
         await employeeRepository.assignManager(userId, managerId);
     },

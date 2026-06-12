@@ -5,6 +5,7 @@ import { ManageUsersScreen } from './manage-users.screen';
 import { ManageEmployeesScreen } from './manage-employees.screen';
 import { ManageProjectsScreen } from './manage-projects.screen';
 import { ViewAllocationsScreen } from './view-allocations.screen';
+import { SystemConfigScreen } from './system-config.screen';
 
 export const AdminMenuScreen = {
     async show(username: string): Promise<void> {
@@ -35,7 +36,7 @@ export const AdminMenuScreen = {
                     await ManageUsersScreen.show();
                     break;
                 case '5':
-                    console.log('\nComing soon...\n');
+                    await SystemConfigScreen.show();
                     break;
                 case '6':
                     sessionStore.clearToken();
