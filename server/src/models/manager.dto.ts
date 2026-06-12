@@ -5,7 +5,6 @@ import { ProjectAllocationDto } from './allocation.dto';
 export interface TeamMemberDto {
     userId: number;
     fullName: string;
-    department: string;
     status: EmployeeStatus;
     utilisationPercent: number;
     skills: string[];
@@ -26,7 +25,6 @@ export interface AllocationLineDto {
 export interface EmployeeDrillDownDto {
     userId: number;
     fullName: string;
-    department: string;
     status: EmployeeStatus;
     utilisationPercent: number;
     skills: string[];

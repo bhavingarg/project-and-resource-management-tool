@@ -3,6 +3,7 @@ import {
     AllocationSummaryDto,
     ProjectAllocationDto,
     CreateAllocationRequestDto,
+    MyAllocationDto,
 } from '../models/allocation.dto';
 
 export const allocationApiService = {
@@ -20,5 +21,9 @@ export const allocationApiService = {
 
     async endAllocation(allocationId: number): Promise<void> {
         await apiClient.patch(`/allocations/${allocationId}/end`, {});
+    },
+
+    async getMyAllocations(): Promise<MyAllocationDto[]> {
+        return apiClient.get<MyAllocationDto[]>('/allocations/mine');
     },
 };

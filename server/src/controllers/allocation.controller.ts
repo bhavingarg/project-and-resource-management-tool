@@ -38,4 +38,9 @@ export const createAllocationController = (allocationService: IAllocationService
             res.status(400).json({ message: (error as Error).message });
         }
     },
+
+    async getMyAllocations(req: Request, res: Response): Promise<void> {
+        const allocations = await allocationService.getMyAllocations(req.user!.userId);
+        res.status(200).json(allocations);
+    },
 });

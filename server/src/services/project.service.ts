@@ -1,5 +1,6 @@
 import { IProjectRepository } from '../repositories/project.repository';
 import { IUserRepository } from '../repositories/user.repository';
+import { ISchedulerService } from './scheduler.service';
 import { ProjectStatus, MilestoneStatus } from '../models/project.model';
 import {
     ProjectSummaryDto,
@@ -45,6 +46,7 @@ export interface IProjectService {
 export const createProjectService = (
     projectRepository: IProjectRepository,
     userRepository: IUserRepository,
+    schedulerService: ISchedulerService,
 ): IProjectService => ({
     async getAllProjects(): Promise<ProjectSummaryDto[]> {
         return projectRepository.findAllSummaries();
@@ -156,5 +158,6 @@ export const createProjectService = (
             throw new Error(`Milestone with ID ${milestoneId} not found`);
         }
         await projectRepository.updateMilestoneStatus(milestoneId, status);
+        schedulerService.recomputeProjectHealth(projectId).catch(() => { /* non-critical */ });
     },
 });

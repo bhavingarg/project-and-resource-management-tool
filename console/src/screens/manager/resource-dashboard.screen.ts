@@ -8,11 +8,11 @@ import { formatAvailability } from './manager-format';
 
 const printBenchSection = (bench: TeamMemberDto[]): void => {
     console.log(`\n  ON BENCH  (${bench.length} employee(s) available)`);
-    console.log(`  ${'─'.repeat(56)}`);
-    console.log(`  ${'ID'.padEnd(6)} ${'Name'.padEnd(18)} ${'Department'.padEnd(14)} Skills`);
+    console.log(`  ${'─'.repeat(44)}`);
+    console.log(`  ${'ID'.padEnd(6)} ${'Name'.padEnd(25)} Skills`);
     for (const member of bench) {
         const skills = member.skills.length > 0 ? member.skills.join(', ') : '(none)';
-        console.log(`  ${String(member.userId).padEnd(6)} ${member.fullName.padEnd(18)} ${member.department.padEnd(14)} ${skills}`);
+        console.log(`  ${String(member.userId).padEnd(6)} ${member.fullName.padEnd(25)} ${skills}`);
     }
 };
 
@@ -32,7 +32,6 @@ const printDrillDown = (detail: EmployeeDrillDownDto): void => {
         : 'BENCH';
 
     console.log(`\n  ── ${detail.fullName} ${'─'.repeat(Math.max(0, 38 - detail.fullName.length))}`);
-    console.log(`  Department     : ${detail.department}`);
     console.log(`  Current Status : ${statusLabel}`);
     console.log(`  Profile Skills : ${detail.skills.length > 0 ? detail.skills.join(', ') : '(none)'}`);
 

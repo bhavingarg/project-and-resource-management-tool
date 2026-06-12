@@ -12,7 +12,7 @@ export const AdminMenuScreen = {
 
         while (running) {
             display.header('ADMIN PANEL', `Welcome, ${username}  |  ${formatDateTime()}`);
-            console.log('\n1. Manage Employees');
+            console.log('\n1. Manage Resources');
             console.log('2. Manage Projects');
             console.log('3. View All Allocations');
             console.log('4. Manage Users');

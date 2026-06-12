@@ -1,0 +1,960 @@
+{
+    "info": {
+        "_postman_id": "prm-api-collection-v1",
+        "name": "PRM API",
+        "description": "Project & Resource Management Tool — complete REST API collection.\n\nBase URL: {{baseUrl}}\n\nSet the collection variable `baseUrl` to `http://localhost:3001/api`.\n\nAfter logging in, copy the `token` from the response and set the `token` collection variable. All protected requests use `Bearer {{token}}` automatically.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3001/api",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "Health",
+            "item": [
+                {
+                    "name": "Health Check",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/health",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "health"
+                            ]
+                        },
+                        "description": "Returns server status and current timestamp. No auth required."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+                        },
+                        "description": "Authenticate with username and password. Returns a JWT token and user info.\n\nResponse includes `forcePasswordChange: true` on first login — the client must redirect to Change Password before accessing any other screen."
+                    }
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/change-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "change-password"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"newPassword\": \"newSecurePass123\"\n}"
+                        },
+                        "description": "Change the authenticated user's own password. Required on first login when `forcePasswordChange` is true.\n\nRequires: Bearer token (any role)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users  [ADMIN]",
+            "item": [
+                {
+                    "name": "Create User",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"ravi.kumar\",\n  \"password\": \"TempPass123\",\n  \"fullName\": \"Ravi Kumar\",\n  \"email\": \"ravi.kumar@example.com\",\n  \"role\": \"RESOURCE\"\n}"
+                        },
+                        "description": "Create a new user account. Roles: `ADMIN`, `MANAGER`, `RESOURCE`.\n\nThe account is created with `forcePasswordChange = true` so the user must change their password on first login.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Get All Users",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users"
+                            ]
+                        },
+                        "description": "Returns a list of all user accounts with id, username, fullName, role, isActive, forcePasswordChange.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Find User by Username or ID",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/users/ravi.kumar",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "ravi.kumar"
+                            ]
+                        },
+                        "description": "Look up a single user by their username (string) or numeric ID.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Reset User Password",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/users/5/password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "5",
+                                "password"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"newPassword\": \"ResetPass456\"\n}"
+                        },
+                        "description": "Admin-initiated password reset. Sets `forcePasswordChange = true` so the user is prompted to change it on next login.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Deactivate User",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/users/5/deactivate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "5",
+                                "deactivate"
+                            ]
+                        },
+                        "description": "Block a user account. The user cannot log in. All data (timesheets, allocations) is preserved.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Reactivate User",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/users/5/reactivate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "5",
+                                "reactivate"
+                            ]
+                        },
+                        "description": "Re-enable a previously deactivated user account.\n\nRequires: ADMIN role."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Employees  [ADMIN]",
+            "item": [
+                {
+                    "name": "Get All Employees",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees"
+                            ]
+                        },
+                        "description": "Returns all employee profiles: id, fullName, email, department, designation, status (BENCH/ALLOCATED), managerId, isActive.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Get Employee by User ID",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5"
+                            ]
+                        },
+                        "description": "Returns a single employee profile by their user ID.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Update Employee",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"department\": \"Backend\",\n  \"designation\": \"Senior Engineer\"\n}"
+                        },
+                        "description": "Update an employee's department and/or designation. Only provided fields are updated.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Get Deactivation Warning",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/deactivate-warning",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "deactivate-warning"
+                            ]
+                        },
+                        "description": "Returns a warning summary before deactivating — lists the employee's active allocations that will be ended.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Deactivate Employee",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/deactivate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "deactivate"
+                            ]
+                        },
+                        "description": "Deactivate an employee: ends all active allocations, blocks their user account login. Historical data (timesheets, past allocations) is preserved.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Assign Manager",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/manager",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "manager"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"managerUserId\": 3\n}"
+                        },
+                        "description": "Set or update the reporting manager for an employee. `managerUserId` must be a user with MANAGER role.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Get Employee Skills",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/skills",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "skills"
+                            ]
+                        },
+                        "description": "Returns all skills for an employee: id, skillName, category, proficiencyLevel.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Add Skill",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/skills",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "skills"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"skillName\": \"Java\",\n  \"category\": \"BACKEND\",\n  \"proficiencyLevel\": \"ADVANCED\"\n}"
+                        },
+                        "description": "Add a new skill to an employee.\n\nCategory values: `BACKEND`, `FRONTEND`, `DEVOPS`, `QA`, `OTHER`\nProficiency values: `BEGINNER`, `INTERMEDIATE`, `ADVANCED`\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Update Skill Proficiency",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/skills/12",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "skills",
+                                "12"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"proficiencyLevel\": \"ADVANCED\"\n}"
+                        },
+                        "description": "Update the proficiency level of an existing skill.\n\nProficiency values: `BEGINNER`, `INTERMEDIATE`, `ADVANCED`\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Remove Skill",
+                    "request": {
+                        "method": "DELETE",
+                        "url": {
+                            "raw": "{{baseUrl}}/employees/5/skills/12",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "employees",
+                                "5",
+                                "skills",
+                                "12"
+                            ]
+                        },
+                        "description": "Remove a skill from an employee by skill ID.\n\nRequires: ADMIN role."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Projects  [ADMIN]",
+            "item": [
+                {
+                    "name": "Get All Projects",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects"
+                            ]
+                        },
+                        "description": "Returns all projects: id, name, managerId, managerName, endDate, status, health, storyPointsDone, totalStoryPoints.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Create Project",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Alpha Portal\",\n  \"description\": \"Customer-facing portal redesign\",\n  \"startDate\": \"2026-06-01\",\n  \"endDate\": \"2026-09-30\",\n  \"status\": \"ACTIVE\",\n  \"managerId\": 3,\n  \"totalStoryPoints\": 120\n}"
+                        },
+                        "description": "Create a new project. Status values: `PLANNED`, `ACTIVE`, `ON_HOLD`. Health defaults to `ON_TRACK`.\n\n`managerId` must be a user with MANAGER or ADMIN role.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Get Project by ID",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects",
+                                "1"
+                            ]
+                        },
+                        "description": "Returns full project detail: id, name, description, startDate, endDate, status, managerId, managerName, totalStoryPoints.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Update Project",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects",
+                                "1"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"ON_HOLD\",\n  \"endDate\": \"2026-10-31\"\n}"
+                        },
+                        "description": "Partial update of a project. Any subset of fields can be sent. Status values: `PLANNED`, `ACTIVE`, `ON_HOLD`, `COMPLETED`.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Get Milestones",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects/1/milestones",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects",
+                                "1",
+                                "milestones"
+                            ]
+                        },
+                        "description": "Returns all milestones for a project along with story-point totals (total, completed, remaining).\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Add Milestone",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects/1/milestones",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects",
+                                "1",
+                                "milestones"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Backend API\",\n  \"dueDate\": \"2026-07-15\",\n  \"storyPoints\": 40\n}"
+                        },
+                        "description": "Add a new milestone to a project. Milestone defaults to `NOT_STARTED` status.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Update Milestone Status",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/projects/1/milestones/3",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "projects",
+                                "1",
+                                "milestones",
+                                "3"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"DONE\"\n}"
+                        },
+                        "description": "Update the status of a milestone. Values: `NOT_STARTED`, `IN_PROGRESS`, `DONE`.\n\nTriggers an immediate project health recompute for this project.\n\nRequires: ADMIN role."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Allocations  [ADMIN / MANAGER / RESOURCE]",
+            "item": [
+                {
+                    "name": "Get All Active Allocations  [ADMIN]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/allocations",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "allocations"
+                            ]
+                        },
+                        "description": "Returns all currently active allocations across all projects and resources.\n\nRequires: ADMIN role."
+                    }
+                },
+                {
+                    "name": "Create Allocation  [MANAGER]",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/allocations",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "allocations"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"resourceUserId\": 5,\n  \"projectId\": 1,\n  \"utilisationPercent\": 50,\n  \"fromDate\": \"2026-06-01\",\n  \"toDate\": \"2026-09-30\"\n}"
+                        },
+                        "description": "Allocate a resource to a project. The manager must own the project.\n\nValidation:\n- Total utilisation across overlapping allocations cannot exceed 100%\n- `fromDate` must be before `toDate`\n- Project must be in ACTIVE or PLANNED status\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "Get Project Allocations  [MANAGER]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/allocations/project/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "allocations",
+                                "project",
+                                "1"
+                            ]
+                        },
+                        "description": "Returns all active allocations on a specific project. Manager must own the project.\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "End Allocation  [MANAGER]",
+                    "request": {
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{baseUrl}}/allocations/7/end",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "allocations",
+                                "7",
+                                "end"
+                            ]
+                        },
+                        "description": "End an allocation immediately (sets `is_active = false`, `to_date = today`). Recomputes the resource's BENCH/ALLOCATED status.\n\nManager must own the project the allocation belongs to.\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "Get My Allocations  [RESOURCE]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/allocations/mine",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "allocations",
+                                "mine"
+                            ]
+                        },
+                        "description": "Returns all allocations (active and past) for the authenticated resource. Each entry includes status: `ACTIVE` or `ENDED`.\n\nRequires: RESOURCE role."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Manager  [MANAGER]",
+            "item": [
+                {
+                    "name": "Get Resource Dashboard",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/manager/dashboard",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "manager",
+                                "dashboard"
+                            ]
+                        },
+                        "description": "Returns the manager's team split into bench and active employees, with skills and utilisation.\n\nOnly employees reporting to this manager are returned.\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "Get Employee Drill-Down",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/manager/employees/5",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "manager",
+                                "employees",
+                                "5"
+                            ]
+                        },
+                        "description": "Returns full detail for a single employee on the manager's team: department, status, skills, active allocations, and recent activity tags from the last 4 weeks of timesheets.\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "Get My Projects",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/manager/projects",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "manager",
+                                "projects"
+                            ]
+                        },
+                        "description": "Returns all projects managed by the authenticated manager, with health indicator: `ON_TRACK`, `ATTENTION`, or `AT_RISK`.\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "Get Project Detail",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/manager/projects/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "manager",
+                                "projects",
+                                "1"
+                            ]
+                        },
+                        "description": "Returns full project detail for the manager: health status, risk flags, milestones (with overdue markers), and allocated resources.\n\nManager must own the project.\n\nRequires: MANAGER role."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Timesheets  [RESOURCE / MANAGER]",
+            "item": [
+                {
+                    "name": "Get Reminder  [RESOURCE]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets/reminder",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets",
+                                "reminder"
+                            ]
+                        },
+                        "description": "Returns whether the authenticated resource has a missing timesheet for last week.\n\nResponse: `{ isMissing: boolean, weekStartDate: string }`\n\nRequires: RESOURCE role."
+                    }
+                },
+                {
+                    "name": "Get Active Allocations for Week  [RESOURCE]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets/active-allocations?week=2026-06-08",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets",
+                                "active-allocations"
+                            ],
+                            "query": [
+                                {
+                                    "key": "week",
+                                    "value": "2026-06-08",
+                                    "description": "Monday of the week in YYYY-MM-DD format"
+                                }
+                            ]
+                        },
+                        "description": "Returns all allocations that were active during the given week for the authenticated resource. Used to populate the Submit Timesheet form.\n\n`week` must be a Monday in YYYY-MM-DD format.\n\nRequires: RESOURCE role."
+                    }
+                },
+                {
+                    "name": "Submit Timesheet  [RESOURCE]",
+                    "request": {
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets"
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"weekStartDate\": \"2026-06-08\",\n  \"entries\": [\n    {\n      \"allocationId\": 7,\n      \"hoursWorked\": 20,\n      \"tags\": [\"Backend API Development\", \"Bug Fixing\"]\n    },\n    {\n      \"allocationId\": 8,\n      \"hoursWorked\": 18,\n      \"tags\": [\"Microservices / Architecture\"]\n    }\n  ]\n}"
+                        },
+                        "description": "Submit a weekly timesheet. Each entry covers one allocation.\n\nValidation rules:\n- `weekStartDate` must be a Monday\n- Cannot submit for a future week\n- Allocation must be active for that week and belong to the resource\n- Hours per allocation ≤ `utilisationPercent / 100 × maxWeeklyHours`\n- Total hours across all entries ≤ `maxWeeklyHours` (default 40)\n- Cannot submit twice for the same allocation+week (duplicate check)\n\nIf the scheduler already inserted a MISSED row for this week, it is replaced. Triggers an immediate project health recompute.\n\nRequires: RESOURCE role."
+                    }
+                },
+                {
+                    "name": "Get My Timesheets  [RESOURCE]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets/mine",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets",
+                                "mine"
+                            ]
+                        },
+                        "description": "Returns up to 12 weeks of timesheet history for the authenticated resource.\n\nEach row: `{ weekStartDate, totalHours, status }` where status is `SUBMITTED` or `MISSED`.\n\nThe current (in-progress) week is only shown if at least one entry has been SUBMITTED.\n\nRequires: RESOURCE role."
+                    }
+                },
+                {
+                    "name": "Get My Week Detail  [RESOURCE]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets/mine/2026-06-08",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets",
+                                "mine",
+                                "2026-06-08"
+                            ]
+                        },
+                        "description": "Returns the detailed breakdown for a specific submitted week: per-project hours and activity tags.\n\nReturns 404 if no submitted timesheet exists for that week.\n\nRequires: RESOURCE role."
+                    }
+                },
+                {
+                    "name": "Get Team Timesheets  [MANAGER]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets/team?week=2026-06-08",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets",
+                                "team"
+                            ],
+                            "query": [
+                                {
+                                    "key": "week",
+                                    "value": "2026-06-08",
+                                    "description": "Monday of the week in YYYY-MM-DD format"
+                                }
+                            ]
+                        },
+                        "description": "Returns timesheet status for all resources on the manager's team for a given week.\n\nEach row: `{ userId, resourceName, projectName, hoursWorked, status }`. Shows MISSED for any allocation with no submitted timesheet.\n\nRequires: MANAGER role."
+                    }
+                },
+                {
+                    "name": "Get Team Member Week Detail  [MANAGER]",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/timesheets/team/5/2026-06-08",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "timesheets",
+                                "team",
+                                "5",
+                                "2026-06-08"
+                            ]
+                        },
+                        "description": "Returns the detailed submitted timesheet for a specific team member for a specific week.\n\nThe manager must be the reporting manager of the requested user.\n\nReturns 404 if no submitted timesheet exists.\n\nRequires: MANAGER role."
+                    }
+                }
+            ]
+        }
+    ]
+}

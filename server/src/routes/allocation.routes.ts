@@ -13,9 +13,11 @@ const allocationController = createAllocationController(allocationService);
 
 const adminOnly = [requireAuth, requireRole(UserRole.ADMIN)];
 const managerOnly = [requireAuth, requireRole(UserRole.MANAGER)];
+const resourceOnly = [requireAuth, requireRole(UserRole.RESOURCE)];
 
 export const allocationRouter = Router();
 
+allocationRouter.get('/mine', ...resourceOnly, (req, res) => allocationController.getMyAllocations(req, res));
 allocationRouter.get('/', ...adminOnly, (req, res) => allocationController.getAllAllocations(req, res));
 allocationRouter.post('/', ...managerOnly, (req, res) => allocationController.createAllocation(req, res));
 allocationRouter.get('/project/:projectId', ...managerOnly, (req, res) => allocationController.getProjectAllocations(req, res));

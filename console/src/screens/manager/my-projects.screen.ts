@@ -39,7 +39,7 @@ const printProjectDetail = (detail: ManagerProjectDetailDto): void => {
         console.log(`    ${'Name'.padEnd(18)} ${'%'.padEnd(5)} ${'From'.padEnd(12)} To`);
         for (const resource of detail.allocatedResources) {
             console.log(
-                `    ${resource.employeeName.padEnd(18)} ${`${resource.utilisationPercent}%`.padEnd(5)} ` +
+                `    ${resource.resourceName.padEnd(18)} ${`${resource.utilisationPercent}%`.padEnd(5)} ` +
                 `${formatDisplayDate(resource.fromDate).padEnd(12)} ${formatDisplayDate(resource.toDate)}`,
             );
         }

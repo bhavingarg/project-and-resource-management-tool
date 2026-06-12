@@ -5,9 +5,10 @@ import { requireRole } from '../middleware/role.middleware';
 import { ProjectRepository } from '../repositories/project.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { createProjectService } from '../services/project.service';
+import { schedulerService } from '../config/scheduler.singleton';
 import { UserRole } from '../models/user.model';
 
-const projectService = createProjectService(ProjectRepository, UserRepository);
+const projectService = createProjectService(ProjectRepository, UserRepository, schedulerService);
 const projectController = createProjectController(projectService);
 
 const adminOnly = [requireAuth, requireRole(UserRole.ADMIN)];

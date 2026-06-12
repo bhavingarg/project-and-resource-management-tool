@@ -81,18 +81,18 @@ const removeSkillFlow = async (employeeId: number, skills: EmployeeSkillDto[]): 
 
 export const ManageSkillsScreen = {
     async show(): Promise<void> {
-        display.header('Manage Employee Skills');
+        display.header('Manage Resource Skills');
 
         const idInput = (await prompt('  Enter User ID: ')).trim();
         if (!idInput) return;
 
+        const userId = Number(idInput);
         try {
-            const employee = await employeeApiService.getEmployeeByUserId(Number(idInput));
-            const employeeId = employee.id;
+            const employee = await employeeApiService.getEmployee(userId);
             console.log(`\n  ── ${employee.fullName} ${'─'.repeat(Math.max(0, 38 - employee.fullName.length))}`);
 
             while (true) {
-                const skills = await employeeApiService.getSkills(employeeId);
+                const skills = await employeeApiService.getSkills(userId);
 
                 if (skills.length === 0) {
                     console.log('  Current Skills: (none)');
@@ -109,13 +109,13 @@ export const ManageSkillsScreen = {
                 const choice = (await prompt('\n  Enter option: ')).trim();
                 try {
                     if (choice === '1') {
-                        await addSkillFlow(employeeId);
+                        await addSkillFlow(userId);
                     } else if (choice === '2') {
                         if (skills.length === 0) { console.log('  No skills to update.'); }
-                        else { await updateSkillFlow(employeeId, skills); }
+                        else { await updateSkillFlow(userId, skills); }
                     } else if (choice === '3') {
                         if (skills.length === 0) { console.log('  No skills to remove.'); }
-                        else { await removeSkillFlow(employeeId, skills); }
+                        else { await removeSkillFlow(userId, skills); }
                     } else if (choice === '4') {
                         return;
                     } else {

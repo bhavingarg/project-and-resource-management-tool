@@ -1,23 +1,22 @@
 import { EmployeeStatus, SkillCategory, ProficiencyLevel } from './employee.model';
 
+// In V2, "employees" are RESOURCE-role users. Their profile lives in resource_profiles.
 export interface EmployeeSummaryDto {
-    id: number;
-    userId: number;
+    userId: number;           // users.id
     fullName: string;
-    department: string;
-    status: EmployeeStatus;
+    status: EmployeeStatus | null;    // null = no profile assigned yet
+    reportingToId: number | null;     // resource_profiles.reporting_to
     isActive: boolean;
 }
 
 export interface EmployeeDetailDto {
-    id: number;
     userId: number;
     fullName: string;
     email: string;
-    department: string;
-    designation: string;
-    status: EmployeeStatus;
-    managerId: number | null;
+    status: EmployeeStatus | null;
+    reportingToId: number | null;
+    department: string | null;
+    designation: string | null;
     isActive: boolean;
 }
 

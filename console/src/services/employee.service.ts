@@ -14,43 +14,39 @@ export const employeeApiService = {
         return apiClient.get<EmployeeSummaryDto[]>('/employees');
     },
 
-    async getEmployee(id: number): Promise<EmployeeDetailDto> {
-        return apiClient.get<EmployeeDetailDto>(`/employees/${id}`);
+    async getEmployee(userId: number): Promise<EmployeeDetailDto> {
+        return apiClient.get<EmployeeDetailDto>(`/employees/${userId}`);
     },
 
-    async getEmployeeByUserId(userId: number): Promise<EmployeeDetailDto> {
-        return apiClient.get<EmployeeDetailDto>(`/employees/by-user/${userId}`);
+    async updateEmployee(userId: number, dto: UpdateEmployeeRequestDto): Promise<void> {
+        await apiClient.patch(`/employees/${userId}`, dto);
     },
 
-    async updateEmployee(id: number, dto: UpdateEmployeeRequestDto): Promise<void> {
-        await apiClient.patch(`/employees/${id}`, dto);
+    async getDeactivateWarning(userId: number): Promise<DeactivateWarningDto> {
+        return apiClient.get<DeactivateWarningDto>(`/employees/${userId}/deactivate-warning`);
     },
 
-    async getDeactivateWarning(id: number): Promise<DeactivateWarningDto> {
-        return apiClient.get<DeactivateWarningDto>(`/employees/${id}/deactivate-warning`);
+    async deactivateEmployee(userId: number): Promise<void> {
+        await apiClient.patch(`/employees/${userId}/deactivate`, {});
     },
 
-    async deactivateEmployee(id: number): Promise<void> {
-        await apiClient.patch(`/employees/${id}/deactivate`, {});
+    async assignManager(userId: number, managerId: number): Promise<void> {
+        await apiClient.patch(`/employees/${userId}/manager`, { managerId });
     },
 
-    async assignManager(employeeId: number, managerId: number): Promise<void> {
-        await apiClient.patch(`/employees/${employeeId}/manager`, { managerId });
+    async getSkills(userId: number): Promise<EmployeeSkillDto[]> {
+        return apiClient.get<EmployeeSkillDto[]>(`/employees/${userId}/skills`);
     },
 
-    async getSkills(employeeId: number): Promise<EmployeeSkillDto[]> {
-        return apiClient.get<EmployeeSkillDto[]>(`/employees/${employeeId}/skills`);
+    async addSkill(userId: number, dto: AddSkillRequestDto): Promise<void> {
+        await apiClient.post(`/employees/${userId}/skills`, dto);
     },
 
-    async addSkill(employeeId: number, dto: AddSkillRequestDto): Promise<void> {
-        await apiClient.post(`/employees/${employeeId}/skills`, dto);
+    async updateSkill(userId: number, skillId: number, dto: UpdateSkillRequestDto): Promise<void> {
+        await apiClient.patch(`/employees/${userId}/skills/${skillId}`, dto);
     },
 
-    async updateSkill(employeeId: number, skillId: number, dto: UpdateSkillRequestDto): Promise<void> {
-        await apiClient.patch(`/employees/${employeeId}/skills/${skillId}`, dto);
-    },
-
-    async removeSkill(employeeId: number, skillId: number): Promise<void> {
-        await apiClient.delete(`/employees/${employeeId}/skills/${skillId}`);
+    async removeSkill(userId: number, skillId: number): Promise<void> {
+        await apiClient.delete(`/employees/${userId}/skills/${skillId}`);
     },
 };

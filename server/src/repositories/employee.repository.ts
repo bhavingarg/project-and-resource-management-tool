@@ -1,4 +1,4 @@
-import { Pool, RowDataPacket } from 'mysql2/promise';
+﻿import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DatabaseConnection } from '../config/database.config';
 import { EmployeeStatus, SkillCategory, ProficiencyLevel } from '../models/employee.model';
 import {
@@ -8,46 +8,39 @@ import {
     EmployeeSkillDto,
 } from '../models/employee.dto';
 
-const UNASSIGNED_PROFILE_FIELD = 'Unassigned';
+// V2: employees are RESOURCE-role users; profiles live in resource_profiles, skills in resource_skills
 
 export interface IEmployeeRepository {
-    createForUser(userId: number, fullName: string, email: string): Promise<void>;
     findAll(): Promise<EmployeeSummaryDto[]>;
-    findById(id: number): Promise<EmployeeDetailDto | null>;
     findByUserId(userId: number): Promise<EmployeeDetailDto | null>;
-    update(id: number, dto: UpdateEmployeeRequestDto): Promise<void>;
-    deactivate(id: number): Promise<void>;
-    reactivate(id: number): Promise<void>;
-    assignManager(id: number, managerId: number): Promise<void>;
-    getActiveAllocationCount(id: number): Promise<number>;
-    getActiveAllocationSummaries(id: number): Promise<string[]>;
-    endActiveAllocations(id: number): Promise<void>;
-    deactivateLinkedUser(id: number): Promise<void>;
-    getSkills(employeeId: number): Promise<EmployeeSkillDto[]>;
-    addSkill(employeeId: number, skillName: string, category: SkillCategory, proficiencyLevel: ProficiencyLevel): Promise<void>;
+    update(userId: number, dto: UpdateEmployeeRequestDto): Promise<void>;
+    assignManager(userId: number, managerId: number): Promise<void>;
+    getActiveAllocationCount(userId: number): Promise<number>;
+    getActiveAllocationSummaries(userId: number): Promise<string[]>;
+    endActiveAllocations(userId: number): Promise<void>;
+    getSkills(userId: number): Promise<EmployeeSkillDto[]>;
+    addSkill(userId: number, skillName: string, category: SkillCategory, proficiencyLevel: ProficiencyLevel): Promise<void>;
     updateSkillProficiency(skillId: number, proficiencyLevel: ProficiencyLevel): Promise<void>;
     removeSkill(skillId: number): Promise<void>;
     findSkillById(skillId: number): Promise<EmployeeSkillDto | null>;
 }
 
-interface EmployeeSummaryRow extends RowDataPacket {
-    id: number;
+interface ResourceSummaryRow extends RowDataPacket {
     user_id: number;
     full_name: string;
-    department: string;
-    status: EmployeeStatus;
+    status: EmployeeStatus | null;
+    reporting_to: number | null;
     is_active: number;
 }
 
-interface EmployeeDetailRow extends RowDataPacket {
-    id: number;
+interface ResourceDetailRow extends RowDataPacket {
     user_id: number;
     full_name: string;
     email: string;
-    department: string;
-    designation: string;
-    status: EmployeeStatus;
-    manager_id: number | null;
+    status: EmployeeStatus | null;
+    reporting_to: number | null;
+    department: string | null;
+    designation: string | null;
     is_active: number;
 }
 
@@ -68,24 +61,22 @@ interface CountRow extends RowDataPacket {
     count: number;
 }
 
-const mapSummary = (row: EmployeeSummaryRow): EmployeeSummaryDto => ({
-    id: row.id,
+const mapSummary = (row: ResourceSummaryRow): EmployeeSummaryDto => ({
     userId: row.user_id,
     fullName: row.full_name,
-    department: row.department,
     status: row.status,
+    reportingToId: row.reporting_to,
     isActive: row.is_active === 1,
 });
 
-const mapDetail = (row: EmployeeDetailRow): EmployeeDetailDto => ({
-    id: row.id,
+const mapDetail = (row: ResourceDetailRow): EmployeeDetailDto => ({
     userId: row.user_id,
     fullName: row.full_name,
     email: row.email,
+    status: row.status,
+    reportingToId: row.reporting_to,
     department: row.department,
     designation: row.designation,
-    status: row.status,
-    managerId: row.manager_id,
     isActive: row.is_active === 1,
 });
 
@@ -97,92 +88,87 @@ const mapSkill = (row: SkillRow): EmployeeSkillDto => ({
 });
 
 export const EmployeeRepository: IEmployeeRepository = {
-    async createForUser(userId: number, fullName: string, email: string): Promise<void> {
-        const pool: Pool = DatabaseConnection.getPool();
-        await pool.execute(
-            `INSERT INTO employees (user_id, full_name, email, department, designation, status, is_active)
-             VALUES (?, ?, ?, ?, ?, 'BENCH', 1)`,
-            [userId, fullName, email, UNASSIGNED_PROFILE_FIELD, UNASSIGNED_PROFILE_FIELD],
-        );
-    },
-
     async findAll(): Promise<EmployeeSummaryDto[]> {
         const pool: Pool = DatabaseConnection.getPool();
-        const [rows] = await pool.execute<EmployeeSummaryRow[]>(
-            `SELECT id, user_id, full_name, department, status, is_active
-             FROM employees ORDER BY id ASC`,
+        const [rows] = await pool.execute<ResourceSummaryRow[]>(
+            `SELECT u.id AS user_id, u.full_name, u.is_active,
+                    rp.status, rp.reporting_to
+             FROM users u
+             JOIN roles r ON r.id = u.role_id AND r.name = 'RESOURCE'
+             LEFT JOIN resource_profiles rp ON rp.user_id = u.id
+             ORDER BY u.full_name ASC`,
         );
         return rows.map(mapSummary);
     },
 
-    async findById(id: number): Promise<EmployeeDetailDto | null> {
-        const pool: Pool = DatabaseConnection.getPool();
-        const [rows] = await pool.execute<EmployeeDetailRow[]>(
-            `SELECT id, user_id, full_name, email, department, designation, status, manager_id, is_active
-             FROM employees WHERE id = ?`,
-            [id],
-        );
-        return rows.length > 0 ? mapDetail(rows[0]) : null;
-    },
-
     async findByUserId(userId: number): Promise<EmployeeDetailDto | null> {
         const pool: Pool = DatabaseConnection.getPool();
-        const [rows] = await pool.execute<EmployeeDetailRow[]>(
-            `SELECT id, user_id, full_name, email, department, designation, status, manager_id, is_active
-             FROM employees WHERE user_id = ?`,
+        const [rows] = await pool.execute<ResourceDetailRow[]>(
+            `SELECT u.id AS user_id, u.full_name, u.email, u.is_active,
+                    rp.status, rp.reporting_to, rp.department, rp.designation
+             FROM users u
+             JOIN roles r ON r.id = u.role_id AND r.name = 'RESOURCE'
+             LEFT JOIN resource_profiles rp ON rp.user_id = u.id
+             WHERE u.id = ?`,
             [userId],
         );
         return rows.length > 0 ? mapDetail(rows[0]) : null;
     },
 
-    async update(id: number, dto: UpdateEmployeeRequestDto): Promise<void> {
+    async update(userId: number, dto: UpdateEmployeeRequestDto): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
-        const fields: string[] = [];
-        const values: unknown[] = [];
+        const userFields: string[] = [];
+        const userValues: unknown[] = [];
 
-        if (dto.fullName !== undefined) { fields.push('full_name = ?'); values.push(dto.fullName); }
-        if (dto.email !== undefined) { fields.push('email = ?'); values.push(dto.email); }
-        if (dto.department !== undefined) { fields.push('department = ?'); values.push(dto.department); }
-        if (dto.designation !== undefined) { fields.push('designation = ?'); values.push(dto.designation); }
+        if (dto.fullName !== undefined) { userFields.push('full_name = ?'); userValues.push(dto.fullName); }
+        if (dto.email !== undefined) { userFields.push('email = ?'); userValues.push(dto.email); }
 
-        if (fields.length === 0) return;
-        values.push(id);
-        await pool.execute(`UPDATE employees SET ${fields.join(', ')} WHERE id = ?`, values as string[]);
+        if (userFields.length > 0) {
+            userValues.push(userId);
+            await pool.execute(`UPDATE users SET ${userFields.join(', ')} WHERE id = ?`, userValues as string[]);
+        }
+
+        const profileFields: string[] = [];
+        const profileValues: unknown[] = [];
+
+        if (dto.department !== undefined) { profileFields.push('department = ?'); profileValues.push(dto.department); }
+        if (dto.designation !== undefined) { profileFields.push('designation = ?'); profileValues.push(dto.designation); }
+
+        if (profileFields.length > 0) {
+            profileValues.push(userId);
+            await pool.execute(`UPDATE resource_profiles SET ${profileFields.join(', ')} WHERE user_id = ?`, profileValues as string[]);
+        }
     },
 
-    async deactivate(id: number): Promise<void> {
+    // Creates or updates the resource_profiles row (reporting_to is NOT NULL in V2 schema)
+    async assignManager(userId: number, managerId: number): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
-        await pool.execute(`UPDATE employees SET is_active = 0 WHERE id = ?`, [id]);
+        await pool.execute(
+            `INSERT INTO resource_profiles (user_id, reporting_to, status)
+             VALUES (?, ?, 'BENCH')
+             ON DUPLICATE KEY UPDATE reporting_to = ?`,
+            [userId, managerId, managerId],
+        );
     },
 
-    async reactivate(id: number): Promise<void> {
-        const pool: Pool = DatabaseConnection.getPool();
-        await pool.execute(`UPDATE employees SET is_active = 1 WHERE id = ?`, [id]);
-    },
-
-    async assignManager(id: number, managerId: number): Promise<void> {
-        const pool: Pool = DatabaseConnection.getPool();
-        await pool.execute(`UPDATE employees SET manager_id = ? WHERE id = ?`, [managerId, id]);
-    },
-
-    async getActiveAllocationCount(id: number): Promise<number> {
+    async getActiveAllocationCount(userId: number): Promise<number> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<CountRow[]>(
             `SELECT COUNT(*) AS count FROM allocations
-             WHERE employee_id = ? AND is_active = 1 AND to_date >= CURDATE()`,
-            [id],
+             WHERE resource_id = ? AND is_active = 1 AND to_date >= CURDATE()`,
+            [userId],
         );
         return rows[0].count;
     },
 
-    async getActiveAllocationSummaries(id: number): Promise<string[]> {
+    async getActiveAllocationSummaries(userId: number): Promise<string[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<AllocationSummaryRow[]>(
             `SELECT p.name AS project_name, a.utilisation_percent, a.to_date
              FROM allocations a
              JOIN projects p ON a.project_id = p.id
-             WHERE a.employee_id = ? AND a.is_active = 1 AND a.to_date >= CURDATE()`,
-            [id],
+             WHERE a.resource_id = ? AND a.is_active = 1 AND a.to_date >= CURDATE()`,
+            [userId],
         );
         return rows.map((r) => {
             const date = new Date(r.to_date);
@@ -191,62 +177,51 @@ export const EmployeeRepository: IEmployeeRepository = {
         });
     },
 
-    async endActiveAllocations(id: number): Promise<void> {
+    async endActiveAllocations(userId: number): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
         await pool.execute(
             `UPDATE allocations SET is_active = 0, to_date = CURDATE()
-             WHERE employee_id = ? AND is_active = 1 AND to_date >= CURDATE()`,
-            [id],
+             WHERE resource_id = ? AND is_active = 1 AND to_date >= CURDATE()`,
+            [userId],
         );
     },
 
-    async deactivateLinkedUser(id: number): Promise<void> {
-        const pool: Pool = DatabaseConnection.getPool();
-        await pool.execute(
-            `UPDATE users u
-             JOIN employees e ON e.user_id = u.id
-             SET u.is_active = 0
-             WHERE e.id = ?`,
-            [id],
-        );
-    },
-
-    async getSkills(employeeId: number): Promise<EmployeeSkillDto[]> {
+    async getSkills(userId: number): Promise<EmployeeSkillDto[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<SkillRow[]>(
             `SELECT id, skill_name, category, proficiency_level
-             FROM employee_skills WHERE employee_id = ? ORDER BY id ASC`,
-            [employeeId],
+             FROM resource_skills WHERE user_id = ? ORDER BY id ASC`,
+            [userId],
         );
         return rows.map(mapSkill);
     },
 
-    async addSkill(employeeId: number, skillName: string, category: SkillCategory, proficiencyLevel: ProficiencyLevel): Promise<void> {
+    async addSkill(userId: number, skillName: string, category: SkillCategory, proficiencyLevel: ProficiencyLevel): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
         await pool.execute(
-            `INSERT INTO employee_skills (employee_id, skill_name, category, proficiency_level)
+            `INSERT INTO resource_skills (user_id, skill_name, category, proficiency_level)
              VALUES (?, ?, ?, ?)`,
-            [employeeId, skillName, category, proficiencyLevel],
+            [userId, skillName, category, proficiencyLevel],
         );
     },
 
     async updateSkillProficiency(skillId: number, proficiencyLevel: ProficiencyLevel): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
         await pool.execute(
-            `UPDATE employee_skills SET proficiency_level = ? WHERE id = ?`,
+            `UPDATE resource_skills SET proficiency_level = ? WHERE id = ?`,
             [proficiencyLevel, skillId],
         );
     },
 
     async removeSkill(skillId: number): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
-        await pool.execute(`DELETE FROM employee_skills WHERE id = ?`, [skillId]);
+        await pool.execute(`DELETE FROM resource_skills WHERE id = ?`, [skillId]);
     },
 
     async findSkillById(skillId: number): Promise<EmployeeSkillDto | null> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<SkillRow[]>(
-            `SELECT id, skill_name, category, proficiency_level FROM employee_skills WHERE id = ?`,
+            `SELECT id, skill_name, category, proficiency_level FROM resource_skills WHERE id = ?`,
             [skillId],
         );
         return rows.length > 0 ? mapSkill(rows[0]) : null;

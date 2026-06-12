@@ -1,4 +1,4 @@
-import { Pool, RowDataPacket } from 'mysql2/promise';
+﻿import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DatabaseConnection } from '../config/database.config';
 import { EmployeeStatus } from '../models/employee.model';
 import { ProjectStatus, ProjectHealth, MilestoneStatus } from '../models/project.model';
@@ -7,10 +7,8 @@ const ISO_DATE_FORMAT = '%Y-%m-%d';
 const RECENT_ACTIVITY_WEEKS = 4;
 
 export interface TeamMemberRecord {
-    employeeId: number;
     userId: number;
     fullName: string;
-    department: string;
     status: EmployeeStatus;
     utilisationPercent: number;
 }
@@ -35,14 +33,12 @@ export interface IManagerRepository {
     findManagerProjects(managerUserId: number): Promise<ManagerProjectRecord[]>;
     findManagerProjectById(managerUserId: number, projectId: number): Promise<ManagerProjectRecord | null>;
     findProjectMilestones(projectId: number): Promise<ManagerMilestoneRecord[]>;
-    findRecentActivityTags(employeeId: number): Promise<string[]>;
+    findRecentActivityTags(userId: number): Promise<string[]>;
 }
 
 interface TeamMemberRow extends RowDataPacket {
-    employee_id: number;
     user_id: number;
     full_name: string;
-    department: string;
     status: EmployeeStatus;
     utilisation_percent: number;
 }
@@ -65,11 +61,12 @@ interface TagRow extends RowDataPacket {
     tag_name: string;
 }
 
+// Current utilisation = sum of active allocation percentages for this resource
 const TEAM_MEMBER_COLUMNS = `
-    e.id AS employee_id, e.user_id, e.full_name, e.department, e.status,
+    u.id AS user_id, u.full_name, rp.status,
     COALESCE((
         SELECT SUM(a.utilisation_percent) FROM allocations a
-        WHERE a.employee_id = e.id AND a.is_active = 1
+        WHERE a.resource_id = u.id AND a.is_active = 1
           AND CURDATE() BETWEEN a.from_date AND a.to_date
     ), 0) AS utilisation_percent
 `;
@@ -83,10 +80,8 @@ const mapManagerProject = (row: ManagerProjectRow): ManagerProjectRecord => ({
 });
 
 const mapTeamMember = (row: TeamMemberRow): TeamMemberRecord => ({
-    employeeId: row.employee_id,
     userId: row.user_id,
     fullName: row.full_name,
-    department: row.department,
     status: row.status,
     utilisationPercent: Number(row.utilisation_percent),
 });
@@ -96,9 +91,10 @@ export const ManagerRepository: IManagerRepository = {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<TeamMemberRow[]>(
             `SELECT ${TEAM_MEMBER_COLUMNS}
-             FROM employees e
-             WHERE e.manager_id = ? AND e.is_active = 1
-             ORDER BY e.full_name ASC`,
+             FROM resource_profiles rp
+             JOIN users u ON u.id = rp.user_id
+             WHERE rp.reporting_to = ? AND u.is_active = 1
+             ORDER BY u.full_name ASC`,
             [managerUserId],
         );
         return rows.map(mapTeamMember);
@@ -108,8 +104,9 @@ export const ManagerRepository: IManagerRepository = {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<TeamMemberRow[]>(
             `SELECT ${TEAM_MEMBER_COLUMNS}
-             FROM employees e
-             WHERE e.manager_id = ? AND e.user_id = ?`,
+             FROM resource_profiles rp
+             JOIN users u ON u.id = rp.user_id
+             WHERE rp.reporting_to = ? AND rp.user_id = ?`,
             [managerUserId, userId],
         );
         return rows.length > 0 ? mapTeamMember(rows[0]) : null;
@@ -149,16 +146,18 @@ export const ManagerRepository: IManagerRepository = {
         }));
     },
 
-    async findRecentActivityTags(employeeId: number): Promise<string[]> {
+    // In V2, timesheets are linked via allocation_id â†’ allocations.resource_id
+    async findRecentActivityTags(userId: number): Promise<string[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<TagRow[]>(
             `SELECT DISTINCT tt.tag_name
              FROM timesheet_tags tt
              JOIN timesheets ts ON tt.timesheet_id = ts.id
-             WHERE ts.employee_id = ?
+             JOIN allocations a ON ts.allocation_id = a.id
+             WHERE a.resource_id = ?
                AND ts.week_start_date >= DATE_SUB(CURDATE(), INTERVAL ${RECENT_ACTIVITY_WEEKS} WEEK)
              ORDER BY tt.tag_name ASC`,
-            [employeeId],
+            [userId],
         );
         return rows.map((row) => row.tag_name);
     },

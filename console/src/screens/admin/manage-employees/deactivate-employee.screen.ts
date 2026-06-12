@@ -5,29 +5,28 @@ import { employeeApiService } from '../../../services/employee.service';
 
 export const DeactivateEmployeeScreen = {
     async show(): Promise<void> {
-        display.header('Deactivate Employee');
+        display.header('Deactivate Resource');
 
         const idInput = (await prompt('  Enter User ID: ')).trim();
         if (!idInput) return;
 
+        const userId = Number(idInput);
         try {
-            const employee = await employeeApiService.getEmployeeByUserId(Number(idInput));
-            const employeeId = employee.id;
+            const employee = await employeeApiService.getEmployee(userId);
 
             if (!employee.isActive) {
-                console.log(`\n  Employee '${employee.fullName}' is already inactive.`);
+                console.log(`\n  Resource '${employee.fullName}' is already inactive.`);
                 await prompt('\n  Press Enter to continue...');
                 return;
             }
 
             console.log(`\n  ── ${employee.fullName} ${'─'.repeat(Math.max(0, 38 - employee.fullName.length))}`);
-            console.log(`  Department : ${employee.department}`);
-            console.log(`  Status     : ${employee.status}`);
+            console.log(`  Status : ${employee.status ?? 'BENCH'}`);
 
-            const warning = await employeeApiService.getDeactivateWarning(employeeId);
+            const warning = await employeeApiService.getDeactivateWarning(userId);
 
             if (warning.allocationCount > 0) {
-                console.log(`\n  ⚠  Warning: This employee has ${warning.allocationCount} active allocation(s).`);
+                console.log(`\n  ⚠  Warning: This resource has ${warning.allocationCount} active allocation(s).`);
                 console.log('     Ending their employment will remove them from:');
                 for (const summary of warning.allocationSummaries) {
                     console.log(`       - ${summary}`);
@@ -47,8 +46,8 @@ export const DeactivateEmployeeScreen = {
                 return;
             }
 
-            await employeeApiService.deactivateEmployee(employeeId);
-            console.log(`\n  Employee deactivated. ✓`);
+            await employeeApiService.deactivateEmployee(userId);
+            console.log(`\n  Resource deactivated. ✓`);
         } catch (error) {
             console.log(`\n  Error: ${extractErrorMessage(error)}`);
         }
