@@ -35,8 +35,8 @@ async function seed(): Promise<void> {
 
     await connection.execute(
         `INSERT IGNORE INTO users
-           (full_name, username, email, password_hash, role, is_active, force_password_change)
-         VALUES (?, ?, ?, ?, 'ADMIN', 1, 1)`,
+           (full_name, username, email, password_hash, role_id, is_active, force_password_change)
+         SELECT ?, ?, ?, ?, r.id, 1, 1 FROM roles r WHERE r.name = 'ADMIN'`,
         ['Administrator', 'admin', 'admin@techserve.local', passwordHash],
     );
 

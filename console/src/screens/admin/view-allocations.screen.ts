@@ -8,14 +8,13 @@ import { AllocationSummaryDto } from '../../models/allocation.dto';
 const printAllocationsTable = (allocations: AllocationSummaryDto[]): void => {
     const separator = `  ${'─'.repeat(62)}`;
     console.log(separator);
-    console.log(
-        `  ${'Employee'.padEnd(18)} ${'Project'.padEnd(18)} ${'%'.padEnd(5)} ` +
+    console.log(`  ${'Employee'.padEnd(18)} ${'Project'.padEnd(18)} ${'%'.padEnd(5)} ` +
         `${'From'.padEnd(12)} To`,
     );
     console.log(separator);
     for (const allocation of allocations) {
         console.log(
-            `  ${allocation.employeeName.padEnd(18)} ${allocation.projectName.padEnd(18)} ` +
+            `  ${allocation.resourceName.padEnd(18)} ${allocation.projectName.padEnd(18)} ` +
             `${`${allocation.utilisationPercent}%`.padEnd(5)} ` +
             `${formatDisplayDate(allocation.fromDate).padEnd(12)} ${formatDisplayDate(allocation.toDate)}`,
         );
@@ -83,7 +82,7 @@ export const ViewAllocationsScreen = {
             }
             printAllocationsTable(view);
 
-            console.log('\n  [F] Filter by employee/project   [C] Clear filter   [B] Back');
+            console.log('\n  [F] Filter by resource/project   [C] Clear filter   [B] Back');
             const choice = (await prompt('  Select')).trim().toUpperCase();
 
             if (choice === 'B') {
@@ -96,16 +95,16 @@ export const ViewAllocationsScreen = {
             }
             if (choice === 'F') {
                 console.log('\n  Filter by:');
-                console.log('    1. Employee');
+                console.log('    1. Resource');
                 console.log('    2. Project');
                 const filterType = (await prompt('  Select')).trim();
 
                 let filtered: FilterResult | null = null;
                 if (filterType === '1') {
                     filtered = await promptValueFilter(
-                        allAllocations.map((a) => a.employeeName),
-                        'Employee',
-                        (value) => allAllocations.filter((a) => a.employeeName === value),
+                        allAllocations.map((a) => a.resourceName),
+                        'Resource',
+                        (value) => allAllocations.filter((a) => a.resourceName === value),
                     );
                 } else if (filterType === '2') {
                     filtered = await promptValueFilter(

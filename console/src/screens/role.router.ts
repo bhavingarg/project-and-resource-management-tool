@@ -8,7 +8,7 @@ type MenuScreen = (username: string) => Promise<void>;
 const ROLE_SCREENS: Record<UserRole, MenuScreen> = {
     ADMIN: AdminMenuScreen.show.bind(AdminMenuScreen),
     MANAGER: ManagerMenuScreen.show.bind(ManagerMenuScreen),
-    EMPLOYEE: EmployeeMenuScreen.show.bind(EmployeeMenuScreen),
+    RESOURCE: EmployeeMenuScreen.show.bind(EmployeeMenuScreen),
 };
 
 export const RoleRouter = {

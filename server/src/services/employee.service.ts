@@ -1,4 +1,4 @@
-import { IEmployeeRepository } from '../repositories/employee.repository';
+﻿import { IEmployeeRepository } from '../repositories/employee.repository';
 import { IUserRepository } from '../repositories/user.repository';
 import {
     EmployeeSummaryDto,
@@ -17,16 +17,15 @@ export interface DeactivateResult {
 
 export interface IEmployeeService {
     getAllEmployees(): Promise<EmployeeSummaryDto[]>;
-    getEmployeeById(id: number): Promise<EmployeeDetailDto>;
-    getEmployeeByUserId(userId: number): Promise<EmployeeDetailDto>;
-    updateEmployee(id: number, dto: UpdateEmployeeRequestDto): Promise<void>;
-    deactivateEmployee(id: number): Promise<void>;
-    getDeactivateWarning(id: number): Promise<DeactivateResult>;
-    assignManager(employeeId: number, managerId: number): Promise<void>;
-    getSkills(employeeId: number): Promise<EmployeeSkillDto[]>;
-    addSkill(employeeId: number, dto: AddSkillRequestDto): Promise<void>;
-    updateSkill(employeeId: number, skillId: number, dto: UpdateSkillRequestDto): Promise<void>;
-    removeSkill(employeeId: number, skillId: number): Promise<void>;
+    getEmployee(userId: number): Promise<EmployeeDetailDto>;
+    updateEmployee(userId: number, dto: UpdateEmployeeRequestDto): Promise<void>;
+    deactivateEmployee(userId: number): Promise<void>;
+    getDeactivateWarning(userId: number): Promise<DeactivateResult>;
+    assignManager(userId: number, managerId: number): Promise<void>;
+    getSkills(userId: number): Promise<EmployeeSkillDto[]>;
+    addSkill(userId: number, dto: AddSkillRequestDto): Promise<void>;
+    updateSkill(userId: number, skillId: number, dto: UpdateSkillRequestDto): Promise<void>;
+    removeSkill(userId: number, skillId: number): Promise<void>;
 }
 
 export const createEmployeeService = (
@@ -37,59 +36,50 @@ export const createEmployeeService = (
         return employeeRepository.findAll();
     },
 
-    async getEmployeeById(id: number): Promise<EmployeeDetailDto> {
-        const employee = await employeeRepository.findById(id);
-        if (!employee) {
-            throw new Error(`Employee with ID ${id} not found`);
-        }
-        return employee;
-    },
-
-    async getEmployeeByUserId(userId: number): Promise<EmployeeDetailDto> {
+    async getEmployee(userId: number): Promise<EmployeeDetailDto> {
         const employee = await employeeRepository.findByUserId(userId);
         if (!employee) {
-            throw new Error(`No employee profile found for user ID ${userId}`);
+            throw new Error(`Resource with user ID ${userId} not found`);
         }
         return employee;
     },
 
-    async updateEmployee(id: number, dto: UpdateEmployeeRequestDto): Promise<void> {
-        const employee = await employeeRepository.findById(id);
+    async updateEmployee(userId: number, dto: UpdateEmployeeRequestDto): Promise<void> {
+        const employee = await employeeRepository.findByUserId(userId);
         if (!employee) {
-            throw new Error(`Employee with ID ${id} not found`);
+            throw new Error(`Resource with user ID ${userId} not found`);
         }
-        await employeeRepository.update(id, dto);
+        await employeeRepository.update(userId, dto);
     },
 
-    async getDeactivateWarning(id: number): Promise<DeactivateResult> {
-        const employee = await employeeRepository.findById(id);
+    async getDeactivateWarning(userId: number): Promise<DeactivateResult> {
+        const employee = await employeeRepository.findByUserId(userId);
         if (!employee) {
-            throw new Error(`Employee with ID ${id} not found`);
+            throw new Error(`Resource with user ID ${userId} not found`);
         }
-        const allocationCount = await employeeRepository.getActiveAllocationCount(id);
+        const allocationCount = await employeeRepository.getActiveAllocationCount(userId);
         const allocationSummaries = allocationCount > 0
-            ? await employeeRepository.getActiveAllocationSummaries(id)
+            ? await employeeRepository.getActiveAllocationSummaries(userId)
             : [];
         return { allocationCount, allocationSummaries };
     },
 
-    async deactivateEmployee(id: number): Promise<void> {
-        const employee = await employeeRepository.findById(id);
+    async deactivateEmployee(userId: number): Promise<void> {
+        const employee = await employeeRepository.findByUserId(userId);
         if (!employee) {
-            throw new Error(`Employee with ID ${id} not found`);
+            throw new Error(`Resource with user ID ${userId} not found`);
         }
         if (!employee.isActive) {
-            throw new Error('Employee is already inactive');
+            throw new Error('Resource is already inactive');
         }
-        await employeeRepository.endActiveAllocations(id);
-        await employeeRepository.deactivate(id);
-        await employeeRepository.deactivateLinkedUser(id);
+        await employeeRepository.endActiveAllocations(userId);
+        await userRepository.setActiveStatus(userId, false);
     },
 
-    async assignManager(employeeId: number, managerId: number): Promise<void> {
-        const employee = await employeeRepository.findById(employeeId);
+    async assignManager(userId: number, managerId: number): Promise<void> {
+        const employee = await employeeRepository.findByUserId(userId);
         if (!employee) {
-            throw new Error(`Employee with ID ${employeeId} not found`);
+            throw new Error(`Resource with user ID ${userId} not found`);
         }
         const manager = await userRepository.findById(managerId);
         if (!manager) {
@@ -98,34 +88,22 @@ export const createEmployeeService = (
         if (manager.role !== UserRole.MANAGER && manager.role !== UserRole.ADMIN) {
             throw new Error('Assigned manager must have MANAGER or ADMIN role');
         }
-        await employeeRepository.assignManager(employeeId, managerId);
+        await employeeRepository.assignManager(userId, managerId);
     },
 
-    async getSkills(employeeId: number): Promise<EmployeeSkillDto[]> {
-        const employee = await employeeRepository.findById(employeeId);
+    async getSkills(userId: number): Promise<EmployeeSkillDto[]> {
+        return employeeRepository.getSkills(userId);
+    },
+
+    async addSkill(userId: number, dto: AddSkillRequestDto): Promise<void> {
+        const employee = await employeeRepository.findByUserId(userId);
         if (!employee) {
-            throw new Error(`Employee with ID ${employeeId} not found`);
+            throw new Error(`Resource with user ID ${userId} not found`);
         }
-        return employeeRepository.getSkills(employeeId);
+        await employeeRepository.addSkill(userId, dto.skillName, dto.category, dto.proficiencyLevel);
     },
 
-    async addSkill(employeeId: number, dto: AddSkillRequestDto): Promise<void> {
-        const employee = await employeeRepository.findById(employeeId);
-        if (!employee) {
-            throw new Error(`Employee with ID ${employeeId} not found`);
-        }
-        try {
-            await employeeRepository.addSkill(employeeId, dto.skillName, dto.category, dto.proficiencyLevel);
-        } catch (err: unknown) {
-            const mysqlError = err as { code?: string };
-            if (mysqlError.code === 'ER_DUP_ENTRY') {
-                throw new Error(`Skill '${dto.skillName}' already exists for this employee`);
-            }
-            throw err;
-        }
-    },
-
-    async updateSkill(employeeId: number, skillId: number, dto: UpdateSkillRequestDto): Promise<void> {
+    async updateSkill(userId: number, skillId: number, dto: UpdateSkillRequestDto): Promise<void> {
         const skill = await employeeRepository.findSkillById(skillId);
         if (!skill) {
             throw new Error(`Skill with ID ${skillId} not found`);
@@ -133,7 +111,7 @@ export const createEmployeeService = (
         await employeeRepository.updateSkillProficiency(skillId, dto.proficiencyLevel);
     },
 
-    async removeSkill(employeeId: number, skillId: number): Promise<void> {
+    async removeSkill(userId: number, skillId: number): Promise<void> {
         const skill = await employeeRepository.findSkillById(skillId);
         if (!skill) {
             throw new Error(`Skill with ID ${skillId} not found`);
@@ -141,3 +119,4 @@ export const createEmployeeService = (
         await employeeRepository.removeSkill(skillId);
     },
 });
+

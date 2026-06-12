@@ -1,6 +1,6 @@
 export interface AllocationSummaryDto {
     id: number;
-    employeeName: string;
+    resourceName: string;
     projectName: string;
     utilisationPercent: number;
     fromDate: string;
@@ -9,16 +9,27 @@ export interface AllocationSummaryDto {
 
 export interface ProjectAllocationDto {
     id: number;
-    employeeName: string;
+    resourceName: string;
     utilisationPercent: number;
     fromDate: string;
     toDate: string;
 }
 
 export interface CreateAllocationRequestDto {
-    employeeUserId: number;
+    resourceUserId: number;
     projectId: number;
     utilisationPercent: number;
     fromDate: string;
     toDate: string;
+}
+
+export type AllocationLifecycleStatus = 'ACTIVE' | 'ENDED';
+
+export interface MyAllocationDto {
+    allocationId: number;
+    projectName: string;
+    utilisationPercent: number;
+    fromDate: string;
+    toDate: string;
+    status: AllocationLifecycleStatus;
 }

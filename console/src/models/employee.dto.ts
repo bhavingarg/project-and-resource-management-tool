@@ -3,23 +3,21 @@ export type SkillCategory = 'BACKEND' | 'FRONTEND' | 'DEVOPS' | 'QA' | 'OTHER';
 export type ProficiencyLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
 export interface EmployeeSummaryDto {
-    id: number;
     userId: number;
     fullName: string;
-    department: string;
-    status: EmployeeStatus;
+    status: EmployeeStatus | null;
+    reportingToId: number | null;
     isActive: boolean;
 }
 
 export interface EmployeeDetailDto {
-    id: number;
     userId: number;
     fullName: string;
     email: string;
-    department: string;
-    designation: string;
-    status: EmployeeStatus;
-    managerId: number | null;
+    status: EmployeeStatus | null;
+    reportingToId: number | null;
+    department: string | null;
+    designation: string | null;
     isActive: boolean;
 }
 

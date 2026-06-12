@@ -1,7 +1,7 @@
 import { IAllocationRepository } from '../repositories/allocation.repository';
 import { IProjectRepository } from '../repositories/project.repository';
 import { IEmployeeRepository } from '../repositories/employee.repository';
-import { AllocationSummaryDto, ProjectAllocationDto, CreateAllocationRequestDto } from '../models/allocation.dto';
+import { AllocationSummaryDto, ProjectAllocationDto, CreateAllocationRequestDto, MyAllocationDto } from '../models/allocation.dto';
 import { ProjectStatus } from '../models/project.model';
 
 const MAX_UTILISATION_PERCENT = 100;
@@ -19,6 +19,7 @@ export interface IAllocationService {
     getProjectAllocations(managerUserId: number, projectId: number): Promise<ProjectAllocationDto[]>;
     createAllocation(managerUserId: number, dto: CreateAllocationRequestDto): Promise<void>;
     endAllocation(managerUserId: number, allocationId: number): Promise<void>;
+    getMyAllocations(resourceUserId: number): Promise<MyAllocationDto[]>;
 }
 
 export const createAllocationService = (
@@ -63,19 +64,19 @@ export const createAllocationService = (
                 throw new Error('Project must be ACTIVE or PLANNED to allocate resources');
             }
 
-            const employee = await employeeRepository.findByUserId(dto.employeeUserId);
-            if (!employee) {
-                throw new Error(`No employee found for user ID ${dto.employeeUserId}`);
+            const resource = await employeeRepository.findByUserId(dto.resourceUserId);
+            if (!resource) {
+                throw new Error(`No resource found for user ID ${dto.resourceUserId}`);
             }
-            if (!employee.isActive) {
-                throw new Error('Employee is inactive');
+            if (!resource.isActive) {
+                throw new Error('Resource is inactive');
             }
-            if (employee.managerId !== managerUserId) {
-                throw new Error('You can only allocate employees from your own team');
+            if (!resource.reportingToId || resource.reportingToId !== managerUserId) {
+                throw new Error('You can only allocate resources from your own team');
             }
 
             const existingUtilisation = await allocationRepository.getOverlappingUtilisation(
-                employee.id,
+                dto.resourceUserId,
                 dto.fromDate,
                 dto.toDate,
             );
@@ -87,13 +88,13 @@ export const createAllocationService = (
             }
 
             await allocationRepository.create({
-                employeeId: employee.id,
+                resourceId: dto.resourceUserId,
                 projectId: dto.projectId,
                 utilisationPercent: dto.utilisationPercent,
                 fromDate: dto.fromDate,
                 toDate: dto.toDate,
             });
-            await allocationRepository.recomputeEmployeeStatus(employee.id);
+            await allocationRepository.recomputeResourceStatus(dto.resourceUserId);
         },
 
         async endAllocation(managerUserId: number, allocationId: number): Promise<void> {
@@ -103,7 +104,11 @@ export const createAllocationService = (
             }
             await getOwnedProject(managerUserId, allocation.projectId);
             await allocationRepository.endById(allocationId);
-            await allocationRepository.recomputeEmployeeStatus(allocation.employeeId);
+            await allocationRepository.recomputeResourceStatus(allocation.resourceId);
+        },
+
+        async getMyAllocations(resourceUserId: number): Promise<MyAllocationDto[]> {
+            return allocationRepository.findAllByUserId(resourceUserId);
         },
     };
 };

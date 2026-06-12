@@ -20,7 +20,7 @@ interface UserRow extends RowDataPacket {
     username: string;
     full_name: string;
     email: string;
-    role: UserRole;
+    role: string;   // comes from roles.name via JOIN
     is_active: number;
 }
 
@@ -29,7 +29,7 @@ const mapRowToSummary = (row: UserRow): UserSummaryDto => ({
     username: row.username,
     fullName: row.full_name,
     email: row.email,
-    role: row.role,
+    role: row.role as UserRole,
     isActive: row.is_active === 1,
 });
 
@@ -37,7 +37,9 @@ export const UserRepository: IUserRepository = {
     async findById(id: number): Promise<UserSummaryDto | null> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<UserRow[]>(
-            `SELECT id, username, full_name, email, role, is_active FROM users WHERE id = ?`,
+            `SELECT u.id, u.username, u.full_name, u.email, r.name AS role, u.is_active
+             FROM users u JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ?`,
             [id],
         );
         return rows.length > 0 ? mapRowToSummary(rows[0]) : null;
@@ -46,9 +48,10 @@ export const UserRepository: IUserRepository = {
     async findByUsernameOrId(usernameOrId: string): Promise<UserSummaryDto | null> {
         const pool: Pool = DatabaseConnection.getPool();
         const isNumeric = /^\d+$/.test(usernameOrId);
-        const query = isNumeric
-            ? `SELECT id, username, full_name, email, role, is_active FROM users WHERE id = ?`
-            : `SELECT id, username, full_name, email, role, is_active FROM users WHERE username = ?`;
+        const condition = isNumeric ? 'u.id = ?' : 'u.username = ?';
+        const query = `SELECT u.id, u.username, u.full_name, u.email, r.name AS role, u.is_active
+                        FROM users u JOIN roles r ON r.id = u.role_id
+                        WHERE ${condition}`;
         const [rows] = await pool.execute<UserRow[]>(query, [usernameOrId]);
         return rows.length > 0 ? mapRowToSummary(rows[0]) : null;
     },
@@ -56,7 +59,9 @@ export const UserRepository: IUserRepository = {
     async findAll(): Promise<UserSummaryDto[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<UserRow[]>(
-            `SELECT id, username, full_name, email, role, is_active FROM users ORDER BY id ASC`,
+            `SELECT u.id, u.username, u.full_name, u.email, r.name AS role, u.is_active
+             FROM users u JOIN roles r ON r.id = u.role_id
+             ORDER BY u.id ASC`,
         );
         return rows.map(mapRowToSummary);
     },
@@ -81,9 +86,10 @@ export const UserRepository: IUserRepository = {
 
     async create(fullName: string, email: string, username: string, passwordHash: string, role: UserRole): Promise<number> {
         const pool: Pool = DatabaseConnection.getPool();
+        // Look up the role_id from the roles table by name, then insert
         const [result] = await pool.execute(
-            `INSERT INTO users (full_name, email, username, password_hash, role, is_active, force_password_change)
-             VALUES (?, ?, ?, ?, ?, 1, 1)`,
+            `INSERT INTO users (full_name, email, username, password_hash, role_id, is_active, force_password_change)
+             SELECT ?, ?, ?, ?, r.id, 1, 1 FROM roles r WHERE r.name = ?`,
             [fullName, email, username, passwordHash, role],
         );
         return (result as { insertId: number }).insertId;

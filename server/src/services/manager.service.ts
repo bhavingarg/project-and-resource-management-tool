@@ -1,4 +1,4 @@
-import { IManagerRepository, TeamMemberRecord } from '../repositories/manager.repository';
+﻿import { IManagerRepository, TeamMemberRecord } from '../repositories/manager.repository';
 import { IEmployeeRepository } from '../repositories/employee.repository';
 import { IAllocationRepository } from '../repositories/allocation.repository';
 import { MilestoneStatus } from '../models/project.model';
@@ -27,11 +27,10 @@ export const createManagerService = (
     allocationRepository: IAllocationRepository,
 ): IManagerService => {
     const toTeamMemberDto = async (member: TeamMemberRecord): Promise<TeamMemberDto> => {
-        const skills = await employeeRepository.getSkills(member.employeeId);
+        const skills = await employeeRepository.getSkills(member.userId);
         return {
             userId: member.userId,
             fullName: member.fullName,
-            department: member.department,
             status: member.status,
             utilisationPercent: member.utilisationPercent,
             skills: skills.map((skill) => skill.skillName),
@@ -51,17 +50,16 @@ export const createManagerService = (
         async getEmployeeDrillDown(managerUserId: number, userId: number): Promise<EmployeeDrillDownDto> {
             const member = await managerRepository.findTeamMemberByUserId(managerUserId, userId);
             if (!member) {
-                throw new Error(`Employee ${userId} is not on your team`);
+                throw new Error(`Resource ${userId} is not on your team`);
             }
             const [skills, activeAllocations, recentActivityTags] = await Promise.all([
-                employeeRepository.getSkills(member.employeeId),
-                allocationRepository.findActiveLinesByEmployee(member.employeeId),
-                managerRepository.findRecentActivityTags(member.employeeId),
+                employeeRepository.getSkills(member.userId),
+                allocationRepository.findActiveLinesByEmployee(member.userId),
+                managerRepository.findRecentActivityTags(member.userId),
             ]);
             return {
                 userId: member.userId,
                 fullName: member.fullName,
-                department: member.department,
                 status: member.status,
                 utilisationPercent: member.utilisationPercent,
                 skills: skills.map((skill) => skill.skillName),

@@ -1,9 +1,10 @@
-import { Pool, RowDataPacket } from 'mysql2/promise';
+﻿import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DatabaseConnection } from '../config/database.config';
 import { EmployeeStatus } from '../models/employee.model';
 import {
     AllocationSummaryDto,
     ProjectAllocationDto,
+    MyAllocationDto,
 } from '../models/allocation.dto';
 import { AllocationLineDto } from '../models/manager.dto';
 
@@ -11,12 +12,12 @@ const ISO_DATE_FORMAT = '%Y-%m-%d';
 
 export interface AllocationRecord {
     id: number;
-    employeeId: number;
+    resourceId: number;
     projectId: number;
 }
 
 export interface CreateAllocationParams {
-    employeeId: number;
+    resourceId: number;
     projectId: number;
     utilisationPercent: number;
     fromDate: string;
@@ -27,16 +28,17 @@ export interface IAllocationRepository {
     findAllActive(): Promise<AllocationSummaryDto[]>;
     findById(id: number): Promise<AllocationRecord | null>;
     findActiveByProject(projectId: number): Promise<ProjectAllocationDto[]>;
-    findActiveLinesByEmployee(employeeId: number): Promise<AllocationLineDto[]>;
-    getOverlappingUtilisation(employeeId: number, fromDate: string, toDate: string): Promise<number>;
+    findActiveLinesByEmployee(resourceId: number): Promise<AllocationLineDto[]>;
+    getOverlappingUtilisation(resourceId: number, fromDate: string, toDate: string): Promise<number>;
     create(params: CreateAllocationParams): Promise<number>;
     endById(id: number): Promise<void>;
-    recomputeEmployeeStatus(employeeId: number): Promise<void>;
+    recomputeResourceStatus(userId: number): Promise<void>;
+    findAllByUserId(userId: number): Promise<MyAllocationDto[]>;
 }
 
 interface AllocationSummaryRow extends RowDataPacket {
     id: number;
-    employee_name: string;
+    resource_name: string;
     project_name: string;
     utilisation_percent: number;
     from_date: string;
@@ -45,7 +47,7 @@ interface AllocationSummaryRow extends RowDataPacket {
 
 interface ProjectAllocationRow extends RowDataPacket {
     id: number;
-    employee_name: string;
+    resource_name: string;
     utilisation_percent: number;
     from_date: string;
     to_date: string;
@@ -60,7 +62,7 @@ interface AllocationLineRow extends RowDataPacket {
 
 interface AllocationRecordRow extends RowDataPacket {
     id: number;
-    employee_id: number;
+    resource_id: number;
     project_id: number;
 }
 
@@ -72,23 +74,32 @@ interface CountRow extends RowDataPacket {
     count: number;
 }
 
+interface MyAllocationRow extends RowDataPacket {
+    allocation_id: number;
+    project_name: string;
+    utilisation_percent: number;
+    from_date: string;
+    to_date: string;
+    is_current: number;
+}
+
 export const AllocationRepository: IAllocationRepository = {
     async findAllActive(): Promise<AllocationSummaryDto[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<AllocationSummaryRow[]>(
-            `SELECT a.id, e.full_name AS employee_name, p.name AS project_name,
+            `SELECT a.id, u.full_name AS resource_name, p.name AS project_name,
                     a.utilisation_percent,
                     DATE_FORMAT(a.from_date, '${ISO_DATE_FORMAT}') AS from_date,
                     DATE_FORMAT(a.to_date, '${ISO_DATE_FORMAT}') AS to_date
              FROM allocations a
-             JOIN employees e ON a.employee_id = e.id
+             JOIN users u ON a.resource_id = u.id
              JOIN projects p ON a.project_id = p.id
              WHERE a.is_active = 1 AND a.to_date >= CURDATE()
-             ORDER BY e.full_name ASC, p.name ASC`,
+             ORDER BY u.full_name ASC, p.name ASC`,
         );
         return rows.map((row) => ({
             id: row.id,
-            employeeName: row.employee_name,
+            resourceName: row.resource_name,
             projectName: row.project_name,
             utilisationPercent: row.utilisation_percent,
             fromDate: row.from_date,
@@ -99,35 +110,35 @@ export const AllocationRepository: IAllocationRepository = {
     async findById(id: number): Promise<AllocationRecord | null> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<AllocationRecordRow[]>(
-            `SELECT id, employee_id, project_id FROM allocations WHERE id = ?`,
+            `SELECT id, resource_id, project_id FROM allocations WHERE id = ?`,
             [id],
         );
         if (rows.length === 0) return null;
-        return { id: rows[0].id, employeeId: rows[0].employee_id, projectId: rows[0].project_id };
+        return { id: rows[0].id, resourceId: rows[0].resource_id, projectId: rows[0].project_id };
     },
 
     async findActiveByProject(projectId: number): Promise<ProjectAllocationDto[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<ProjectAllocationRow[]>(
-            `SELECT a.id, e.full_name AS employee_name, a.utilisation_percent,
+            `SELECT a.id, u.full_name AS resource_name, a.utilisation_percent,
                     DATE_FORMAT(a.from_date, '${ISO_DATE_FORMAT}') AS from_date,
                     DATE_FORMAT(a.to_date, '${ISO_DATE_FORMAT}') AS to_date
              FROM allocations a
-             JOIN employees e ON a.employee_id = e.id
+             JOIN users u ON a.resource_id = u.id
              WHERE a.project_id = ? AND a.is_active = 1 AND a.to_date >= CURDATE()
-             ORDER BY e.full_name ASC`,
+             ORDER BY u.full_name ASC`,
             [projectId],
         );
         return rows.map((row) => ({
             id: row.id,
-            employeeName: row.employee_name,
+            resourceName: row.resource_name,
             utilisationPercent: row.utilisation_percent,
             fromDate: row.from_date,
             toDate: row.to_date,
         }));
     },
 
-    async findActiveLinesByEmployee(employeeId: number): Promise<AllocationLineDto[]> {
+    async findActiveLinesByEmployee(resourceId: number): Promise<AllocationLineDto[]> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<AllocationLineRow[]>(
             `SELECT p.name AS project_name, a.utilisation_percent,
@@ -135,9 +146,9 @@ export const AllocationRepository: IAllocationRepository = {
                     DATE_FORMAT(a.to_date, '${ISO_DATE_FORMAT}') AS to_date
              FROM allocations a
              JOIN projects p ON a.project_id = p.id
-             WHERE a.employee_id = ? AND a.is_active = 1 AND a.to_date >= CURDATE()
+             WHERE a.resource_id = ? AND a.is_active = 1 AND a.to_date >= CURDATE()
              ORDER BY p.name ASC`,
-            [employeeId],
+            [resourceId],
         );
         return rows.map((row) => ({
             projectName: row.project_name,
@@ -147,14 +158,14 @@ export const AllocationRepository: IAllocationRepository = {
         }));
     },
 
-    async getOverlappingUtilisation(employeeId: number, fromDate: string, toDate: string): Promise<number> {
+    async getOverlappingUtilisation(resourceId: number, fromDate: string, toDate: string): Promise<number> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<SumRow[]>(
             `SELECT COALESCE(SUM(utilisation_percent), 0) AS total
              FROM allocations
-             WHERE employee_id = ? AND is_active = 1
+             WHERE resource_id = ? AND is_active = 1
                AND from_date <= ? AND to_date >= ?`,
-            [employeeId, toDate, fromDate],
+            [resourceId, toDate, fromDate],
         );
         return Number(rows[0].total);
     },
@@ -162,9 +173,9 @@ export const AllocationRepository: IAllocationRepository = {
     async create(params: CreateAllocationParams): Promise<number> {
         const pool: Pool = DatabaseConnection.getPool();
         const [result] = await pool.execute(
-            `INSERT INTO allocations (employee_id, project_id, utilisation_percent, from_date, to_date, is_active)
+            `INSERT INTO allocations (resource_id, project_id, utilisation_percent, from_date, to_date, is_active)
              VALUES (?, ?, ?, ?, ?, 1)`,
-            [params.employeeId, params.projectId, params.utilisationPercent, params.fromDate, params.toDate],
+            [params.resourceId, params.projectId, params.utilisationPercent, params.fromDate, params.toDate],
         );
         return (result as { insertId: number }).insertId;
     },
@@ -177,14 +188,41 @@ export const AllocationRepository: IAllocationRepository = {
         );
     },
 
-    async recomputeEmployeeStatus(employeeId: number): Promise<void> {
+    // Recomputes BENCH/ALLOCATED status in resource_profiles based on active allocations
+    async recomputeResourceStatus(userId: number): Promise<void> {
         const pool: Pool = DatabaseConnection.getPool();
         const [rows] = await pool.execute<CountRow[]>(
             `SELECT COUNT(*) AS count FROM allocations
-             WHERE employee_id = ? AND is_active = 1 AND to_date >= CURDATE()`,
-            [employeeId],
+             WHERE resource_id = ? AND is_active = 1 AND to_date >= CURDATE()`,
+            [userId],
         );
         const status: EmployeeStatus = rows[0].count > 0 ? EmployeeStatus.ALLOCATED : EmployeeStatus.BENCH;
-        await pool.execute(`UPDATE employees SET status = ? WHERE id = ?`, [status, employeeId]);
+        await pool.execute(
+            `UPDATE resource_profiles SET status = ? WHERE user_id = ?`,
+            [status, userId],
+        );
+    },
+
+    async findAllByUserId(userId: number): Promise<MyAllocationDto[]> {
+        const pool: Pool = DatabaseConnection.getPool();
+        const [rows] = await pool.execute<MyAllocationRow[]>(
+            `SELECT a.id AS allocation_id, p.name AS project_name, a.utilisation_percent,
+                    DATE_FORMAT(a.from_date, '%Y-%m-%d') AS from_date,
+                    DATE_FORMAT(a.to_date, '%Y-%m-%d') AS to_date,
+                    (a.is_active = 1 AND a.to_date >= CURDATE()) AS is_current
+             FROM allocations a
+             JOIN projects p ON a.project_id = p.id
+             WHERE a.resource_id = ?
+             ORDER BY a.from_date DESC`,
+            [userId],
+        );
+        return rows.map((row) => ({
+            allocationId: row.allocation_id,
+            projectName: row.project_name,
+            utilisationPercent: row.utilisation_percent,
+            fromDate: row.from_date,
+            toDate: row.to_date,
+            status: row.is_current === 1 ? 'ACTIVE' : 'ENDED',
+        }));
     },
 };

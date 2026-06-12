@@ -35,7 +35,7 @@ const selectProject = async (): Promise<ManagerProjectDto | null> => {
     return project;
 };
 
-const setAndConfirmAllocation = async (projectId: number, employeeUserId: number): Promise<void> => {
+const setAndConfirmAllocation = async (projectId: number, resourceUserId: number): Promise<void> => {
     const utilisationInput = (await prompt('  Utilisation %  ')).trim();
     const utilisationPercent = Number(utilisationInput);
     if (Number.isNaN(utilisationPercent) || utilisationPercent < 1 || utilisationPercent > 100) {
@@ -64,7 +64,7 @@ const setAndConfirmAllocation = async (projectId: number, employeeUserId: number
         return;
     }
 
-    await allocationApiService.createAllocation({ employeeUserId, projectId, utilisationPercent, fromDate, toDate });
+    await allocationApiService.createAllocation({ resourceUserId, projectId, utilisationPercent, fromDate, toDate });
     console.log('\n  Allocation saved. ✓');
 };
 
@@ -126,7 +126,7 @@ const printProjectAllocations = (allocations: ProjectAllocationDto[]): void => {
     console.log(`  ${'#'.padEnd(4)} ${'Employee'.padEnd(18)} ${'%'.padEnd(5)} ${'From'.padEnd(12)} To`);
     allocations.forEach((allocation, index) => {
         console.log(
-            `  ${String(index + 1).padEnd(4)} ${allocation.employeeName.padEnd(18)} ` +
+            `  ${String(index + 1).padEnd(4)} ${allocation.resourceName.padEnd(18)} ` +
             `${`${allocation.utilisationPercent}%`.padEnd(5)} ` +
             `${formatDisplayDate(allocation.fromDate).padEnd(12)} ${formatDisplayDate(allocation.toDate)}`,
         );
@@ -152,7 +152,7 @@ const endAllocationFlow = async (): Promise<void> => {
     }
 
     const target = allocations[index];
-    console.log(`\n  End ${target.employeeName}'s allocation on ${project.name}?`);
+    console.log(`\n  End ${target.resourceName}'s allocation on ${project.name}?`);
     console.log('  [Y] Yes, End Now    [B] Cancel');
     const confirm = (await prompt('  Select')).trim().toUpperCase();
     if (confirm !== 'Y') {
@@ -161,7 +161,7 @@ const endAllocationFlow = async (): Promise<void> => {
     }
 
     await allocationApiService.endAllocation(target.id);
-    console.log(`\n  Allocation ended. ${target.employeeName} freed from ${project.name}. ✓`);
+    console.log(`\n  Allocation ended. ${target.resourceName} freed from ${project.name}. ✓`);
 };
 
 export const AllocateResourceScreen = {

@@ -8,11 +8,11 @@ import { CreateUserRequestDto } from '../../../models/user.dto';
 const ROLE_MAP: Record<string, UserRole> = {
     '1': 'ADMIN',
     '2': 'MANAGER',
-    '3': 'EMPLOYEE',
+    '3': 'RESOURCE',
 };
 
 const promptRole = async (): Promise<UserRole | null> => {
-    console.log('  Role: (1) Admin  (2) Manager  (3) Employee');
+    console.log('  Role: (1) Admin  (2) Manager  (3) Resource');
     const input = (await prompt('  Select: ')).trim();
     const role = ROLE_MAP[input];
     if (!role) {
@@ -46,9 +46,6 @@ export const CreateUserScreen = {
         try {
             const user = await userApiService.createUser(dto);
             console.log(`\n  User '${user.username}' (ID: ${user.id}) created successfully.`);
-            if (role !== 'ADMIN') {
-                console.log('  Employee profile created. Set Department and Designation via Manage Employees > Update Employee.');
-            }
             console.log('  The user will be prompted to change their password on first login.');
         } catch (error) {
             console.log(`\n  Error: ${extractErrorMessage(error)}`);

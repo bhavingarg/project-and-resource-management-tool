@@ -5,6 +5,7 @@ import { employeeRouter } from './employee.routes';
 import { projectRouter } from './project.routes';
 import { allocationRouter } from './allocation.routes';
 import { managerRouter } from './manager.routes';
+import { timesheetRouter } from './timesheet.routes';
 
 export const router = Router();
 
@@ -18,3 +19,4 @@ router.use('/employees', employeeRouter);
 router.use('/projects', projectRouter);
 router.use('/allocations', allocationRouter);
 router.use('/manager', managerRouter);
+router.use('/timesheets', timesheetRouter);

@@ -7,7 +7,8 @@
         "src/**/*.spec.ts",
         "dist"
     ],
-    "exec": "ts-node src/index.ts",
+    "exec": "ts-node --files src/index.ts",
+    "stdin": false,
     "env": {
         "NODE_ENV": "development"
     }

@@ -4,6 +4,7 @@ import { sessionStore } from '../../services/session.store';
 import { ResourceDashboardScreen } from './resource-dashboard.screen';
 import { AllocateResourceScreen } from './allocate-resource.screen';
 import { MyProjectsScreen } from './my-projects.screen';
+import { ManagerTimesheetsScreen } from './timesheets.screen';
 
 export const ManagerMenuScreen = {
     async show(username: string): Promise<void> {
@@ -31,6 +32,8 @@ export const ManagerMenuScreen = {
                     await MyProjectsScreen.show();
                     break;
                 case '4':
+                    await ManagerTimesheetsScreen.show();
+                    break;
                 case '5':
                     console.log('\nComing soon...\n');
                     break;

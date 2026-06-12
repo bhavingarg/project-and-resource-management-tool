@@ -36,3 +36,26 @@ export const formatDisplayDate = (isoDate: string): string => {
     const monthLabel = MONTH_ABBREVIATIONS[Number(mm) - 1] ?? mm;
     return `${dd}-${monthLabel}-${yyyy.slice(2)}`;
 };
+
+const DAYS_PER_WEEK = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const toIsoString = (date: Date): string => {
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
+export const getCurrentWeekMonday = (): string => {
+    const now = new Date();
+    const daysSinceMonday = (now.getUTCDay() + 6) % DAYS_PER_WEEK;
+    return toIsoString(new Date(now.getTime() - daysSinceMonday * MS_PER_DAY));
+};
+
+export const getLastWeekMonday = (): string => {
+    const now = new Date();
+    const daysSinceMonday = (now.getUTCDay() + 6) % DAYS_PER_WEEK;
+    const thisMonday = new Date(now.getTime() - daysSinceMonday * MS_PER_DAY);
+    return toIsoString(new Date(thisMonday.getTime() - DAYS_PER_WEEK * MS_PER_DAY));
+};

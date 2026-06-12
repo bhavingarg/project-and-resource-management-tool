@@ -7,10 +7,10 @@ import { ManageSkillsScreen } from './manage-employees/manage-skills.screen';
 import { AssignManagerScreen } from './manage-employees/assign-manager.screen';
 
 const MENU_ITEMS = [
-    '1. View All Employees',
-    '2. Update Employee',
-    '3. Deactivate Employee',
-    '4. Manage Employee Skills',
+    '1. View All Resources',
+    '2. Update Resource',
+    '3. Deactivate Resource',
+    '4. Manage Resource Skills',
     '5. Assign Manager',
     '6. Back',
 ] as const;
@@ -18,7 +18,7 @@ const MENU_ITEMS = [
 export const ManageEmployeesScreen = {
     async show(): Promise<void> {
         while (true) {
-            display.header('Manage Employees');
+            display.header('Manage Resources');
             for (const item of MENU_ITEMS) {
                 console.log(`  ${item}`);
             }
