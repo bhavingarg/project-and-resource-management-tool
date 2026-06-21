@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">63.63% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>13/13</span>
+                <span class='fraction'>14/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">35.71% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>4/4</span>
+                <span class='fraction'>5/14</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">63.15% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>12/19</span>
             </div>
         
             
@@ -103,7 +103,23 @@
 <a name='L38'></a><a href='#L38'>38</a>
 <a name='L39'></a><a href='#L39'>39</a>
 <a name='L40'></a><a href='#L40'>40</a>
-<a name='L41'></a><a href='#L41'>41</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -121,6 +137,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -136,6 +153,21 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -146,7 +178,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 &nbsp;
-export type LlmProvider = 'gemini' | 'groq';
+export type LlmProvider = 'gemini' | 'groq' | 'custom';
 &nbsp;
 export interface IAiService {
     /**
@@ -157,7 +189,7 @@ export interface IAiService {
      * no SQL capability.  All data must be pre-fetched by the repository layer
      * and embedded in the prompt by the caller before this method is invoked.
      */
-    generateText(prompt: string, provider: LlmProvider, modelName: string, apiKey: string): Promise&lt;string&gt;;
+    generateText(prompt: string, provider: LlmProvider, modelName: string, apiKey: string, host?: string): Promise&lt;string&gt;;
 }
 &nbsp;
 export const createAiService = (): IAiService =&gt; ({
@@ -166,6 +198,7 @@ export const createAiService = (): IAiService =&gt; ({
         provider: LlmProvider,
         modelName: string,
         apiKey: string,
+        host?: string,
     ): Promise&lt;string&gt; {
         if (provider === 'groq') {
             const groq = new Groq({ apiKey });
@@ -174,6 +207,21 @@ export const createAiService = (): IAiService =&gt; ({
                 messages: [{ role: 'user', content: prompt }],
             });
             return (completion.choices[0]?.message?.content ?? '').trim();
+        }
+&nbsp;
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (provider === 'custom') {
+<span class="cstat-no" title="statement not covered" >            if (!host) <span class="cstat-no" title="statement not covered" >throw new Error('custom LLM provider requires llm_host to be configured in System Config');</span></span>
+            const url = <span class="cstat-no" title="statement not covered" >apiKey ? `${host}?apikey=${encodeURIComponent(apiKey)}` : host;</span>
+            const response = <span class="cstat-no" title="statement not covered" >await fetch(url, {</span>
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: modelName, prompt, stream: false }),
+            });
+<span class="cstat-no" title="statement not covered" >            if (!response.ok) {</span>
+<span class="cstat-no" title="statement not covered" >                throw new Error(`Custom LLM request failed: ${response.status} ${response.statusText}`);</span>
+            }
+            const data = <span class="cstat-no" title="statement not covered" >await response.json() as { response?: string };</span>
+<span class="cstat-no" title="statement not covered" >            return (data.response ?? '').trim();</span>
         }
 &nbsp;
         // Default: Gemini
@@ -190,7 +238,7 @@ export const createAiService = (): IAiService =&gt; ({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-12T08:29:45.337Z
+                at 2026-06-20T06:04:10.392Z
             </div>
         <script src="../prettify.js"></script>
         <script>

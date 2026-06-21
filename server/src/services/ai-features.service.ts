@@ -1,10 +1,13 @@
-import { IAiRepository, SkillMatchCandidateRecord } from '../repositories/ai.repository';
+﻿import { IAiRepository, SkillMatchCandidateRecord } from '../repositories/ai.repository';
 import { ISystemConfigRepository } from '../repositories/system-config.repository';
 import { IAiService, LlmProvider } from './ai.service';
 import {
     SkillMatchResponseDto,
     SkillMatchResultDto,
     RiskSummaryResponseDto,
+    TeamRoleDto,
+    TeamStaffResponseDto,
+    TeamRoleResultDto,
 } from '../models/ai.dto';
 import { AppConfig } from '../config/app.config';
 
@@ -14,9 +17,10 @@ const DEFAULT_PROVIDER: LlmProvider = 'gemini';
 export interface IAiFeaturesService {
     skillMatch(managerUserId: number, requirement: string, projectName?: string): Promise<SkillMatchResponseDto>;
     getRiskSummary(managerUserId: number, projectId: number): Promise<RiskSummaryResponseDto>;
+    staffTeam(roles: TeamRoleDto[], projectName?: string): Promise<TeamStaffResponseDto>;
 }
 
-// ── prompt builders ──────────────────────────────────────────────────────────
+// â”€â”€ prompt builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const buildSkillMatchPrompt = (
     candidates: SkillMatchCandidateRecord[],
@@ -42,14 +46,14 @@ Requirement: "${requirement}"
 Available team members (not fully allocated):
 ${candidateBlock}
 
-Return a JSON array of the best matches (up to 3, or fewer if fewer candidates exist).
+Return a JSON array covering ALL of the candidates listed above, ranked from best to least suitable.
 STRICT RULES:
 - Only include a candidate if their Skills list directly contains technology relevant to the requirement.
 - Do NOT include anyone who lacks the required skill, regardless of their availability.
 - For the reason, write ONE short sentence describing what specific skill(s) they have that match.
 - Do NOT mention ranking, suitability scores, or compare people to each other.
 
-Use this exact format — no markdown, no code blocks, just the raw JSON array:
+Use this exact format â€” no markdown, no code blocks, just the raw JSON array:
 [
   {"userId": <number>, "reason": "<one sentence about their specific matching skill>"},
   ...
@@ -75,7 +79,7 @@ const buildRiskSummaryPrompt = (data: {
         ? data.milestones
             .map(
                 (m) =>
-                    `  - ${m.title}: due ${m.dueDate}, status ${m.status}${m.isOverdue ? ' ⚠ OVERDUE' : ''}`,
+                    `  - ${m.title}: due ${m.dueDate}, status ${m.status}${m.isOverdue ? ' âš  OVERDUE' : ''}`,
             )
             .join('\n')
         : '  (no milestones defined)';
@@ -87,7 +91,7 @@ const buildRiskSummaryPrompt = (data: {
                 const allocDays = Math.floor(
                     (new Date(today).getTime() - new Date(e.allocationDate).getTime()) / 86400000,
                 );
-                const newNote = allocDays < 7 ? ` [allocated ${allocDays} day(s) ago — no timesheets expected yet]` : '';
+                const newNote = allocDays < 7 ? ` [allocated ${allocDays} day(s) ago â€” no timesheets expected yet]` : '';
                 return `  - ${e.resourceName}: ${e.utilisationPercent}% allocated since ${e.allocationDate}` +
                     ` (expected ~${e.expectedHoursPerWeek}h/week, avg logged: ${e.avgHoursPerWeek}h/week` +
                     ` over last 4 weeks, ${e.weeksSubmitted} timesheets submitted${newNote})`;
@@ -112,7 +116,7 @@ Write 2-3 sentences of plain English summarising the key risks and what the mana
 Do NOT use bullet points or markdown. Return only the plain-English paragraph.`;
 };
 
-// ── resolve LLM settings from system config ────────────────────────────────
+// â”€â”€ resolve LLM settings from system config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface LlmSettings {
     provider: LlmProvider;
@@ -138,7 +142,7 @@ const resolveLlmSettings = async (
     return { provider: resolvedProvider, modelName: model, apiKey, host };
 };
 
-// ── JSON parsing helper ──────────────────────────────────────────────────────
+// â”€â”€ JSON parsing helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface GeminiMatchItem {
     userId: number;
@@ -153,7 +157,7 @@ const parseMatchJson = (raw: string): GeminiMatchItem[] => {
     return parsed as GeminiMatchItem[];
 };
 
-// ── factory ──────────────────────────────────────────────────────────────────
+// â”€â”€ factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const createAiFeaturesService = (
     aiRepository: IAiRepository,
@@ -185,7 +189,7 @@ export const createAiFeaturesService = (
             .split(/[\s,./\-]+/)
             .filter((w) => w.length > 2 && !STOPWORDS.has(w));
 
-        // If no meaningful technology keywords found, return empty — don't guess
+        // If no meaningful technology keywords found, return empty â€” don't guess
         if (keywords.length === 0) {
             return { requirement, matches: [] };
         }
@@ -198,7 +202,7 @@ export const createAiFeaturesService = (
             }),
         );
 
-        // No fallback — if no one has the skill, tell the user clearly
+        // No fallback â€” if no one has the skill, tell the user clearly
         if (candidates.length === 0) {
             return { requirement, matches: [] };
         }
@@ -212,7 +216,7 @@ export const createAiFeaturesService = (
             geminiMatches = parseMatchJson(raw);
         } catch {
             // If Gemini returns non-JSON, fall back to returning candidates sorted by free capacity
-            const fallback: SkillMatchResultDto[] = candidates.slice(0, 3).map((c) => ({
+            const fallback: SkillMatchResultDto[] = candidates.map((c) => ({
                 userId: c.userId,
                 fullName: c.fullName,
                 freePercent: 100 - c.utilisationPercent,
@@ -228,7 +232,6 @@ export const createAiFeaturesService = (
 
         const matches: SkillMatchResultDto[] = geminiMatches
             .filter((m) => candidateMap.has(m.userId))
-            .slice(0, 3)
             .map((m) => {
                 const candidate = candidateMap.get(m.userId)!;
                 return {
@@ -258,5 +261,122 @@ export const createAiFeaturesService = (
         const summary = await aiService.generateText(prompt, provider, modelName, apiKey, host);
 
         return { projectName: data.projectName, summary };
+    },
+
+    async staffTeam(
+        roles: TeamRoleDto[],
+        projectName?: string,
+    ): Promise<TeamStaffResponseDto> {
+        const allAvailable = await aiRepository.findSkillMatchCandidates();
+
+        const STOPWORDS = new Set([
+            'developer', 'engineer', 'expert', 'specialist', 'senior', 'junior',
+            'lead', 'architect', 'consultant', 'analyst', 'with', 'and', 'for', 'the',
+            'want', 'need', 'looking', 'months', 'weeks', 'project', 'resource',
+        ]);
+
+        const extractKeywords = (skill: string): string[] =>
+            skill.toLowerCase().split(/[\s,./\-]+/).filter((w) => w.length > 2 && !STOPWORDS.has(w));
+
+        const matchesCandidateSkill = (candidate: SkillMatchCandidateRecord, keywords: string[]): boolean =>
+            candidate.skills.some((s) => {
+                const sl = s.toLowerCase();
+                return keywords.some((kw) => sl.includes(kw) || kw.includes(sl.replace(/\s+/g, '')));
+            });
+
+        const { provider, modelName, apiKey, host } = await resolveLlmSettings(systemConfigRepository);
+
+        const results: TeamRoleResultDto[] = [];
+
+        for (const role of roles) {
+            const keywords = extractKeywords(role.requiredSkill);
+
+            // All available candidates who have the required skill
+            const eligible = keywords.length > 0
+                ? allAvailable.filter((c) => matchesCandidateSkill(c, keywords))
+                : allAvailable.slice();
+
+            if (eligible.length === 0) {
+                // Gap analysis: does the skill exist at all in the org (even if fully allocated)?
+                const anyWithSkill = keywords.length > 0
+                    ? await aiRepository.findAllocatedCandidatesWithSkill(keywords[0] ?? role.requiredSkill)
+                    : [];
+
+                if (anyWithSkill.length === 0) {
+                    results.push({
+                        roleName: role.roleName,
+                        requiredSkill: role.requiredSkill,
+                        matched: false,
+                        gapType: 'no_skill',
+                        gapMessage: `No employee in the organisation has ${role.requiredSkill} skills. Consider hiring or training.`,
+                    });
+                } else {
+                    const earliest = anyWithSkill[0].availableFrom;
+                    results.push({
+                        roleName: role.roleName,
+                        requiredSkill: role.requiredSkill,
+                        matched: false,
+                        gapType: 'all_allocated',
+                        gapMessage: `All employees with ${role.requiredSkill} skills are currently fully allocated.`,
+                        availableFrom: earliest,
+                    });
+                }
+                continue;
+            }
+
+            // Reuse the same prompt + JSON parser as skillMatch to get a ranked list with reasons
+            const profLine = role.proficiencyLevel ? ` (${role.proficiencyLevel} level preferred)` : '';
+            const requirement = `${role.roleName}${profLine} — required skill: ${role.requiredSkill}`;
+            const prompt = buildSkillMatchPrompt(eligible, requirement, projectName);
+            const raw = await aiService.generateText(prompt, provider, modelName, apiKey, host);
+
+            let geminiMatches: GeminiMatchItem[];
+            try {
+                geminiMatches = parseMatchJson(raw);
+            } catch {
+                // Fallback: return all eligible candidates sorted by free capacity, no AI reason
+                const candidates: SkillMatchResultDto[] = eligible.map((c) => ({
+                    userId: c.userId,
+                    fullName: c.fullName,
+                    freePercent: 100 - c.utilisationPercent,
+                    reason: `Has ${role.requiredSkill} skills and is ${100 - c.utilisationPercent}% available.`,
+                    currentManager: c.currentManagerName,
+                    skills: c.skills,
+                }));
+                results.push({ roleName: role.roleName, requiredSkill: role.requiredSkill, matched: true, candidates });
+                continue;
+            }
+
+            const candidateMap = new Map(eligible.map((c) => [c.userId, c]));
+            const candidates: SkillMatchResultDto[] = geminiMatches
+                .filter((m) => candidateMap.has(m.userId))
+                .map((m) => {
+                    const c = candidateMap.get(m.userId)!;
+                    return {
+                        userId: c.userId,
+                        fullName: c.fullName,
+                        freePercent: 100 - c.utilisationPercent,
+                        reason: m.reason,
+                        currentManager: c.currentManagerName,
+                        skills: c.skills,
+                    };
+                });
+
+            // If AI returned nothing useful, fall back to all eligible sorted by availability
+            if (candidates.length === 0) {
+                eligible.forEach((c) => candidates.push({
+                    userId: c.userId,
+                    fullName: c.fullName,
+                    freePercent: 100 - c.utilisationPercent,
+                    reason: `Has ${role.requiredSkill} skills and is ${100 - c.utilisationPercent}% available.`,
+                    currentManager: c.currentManagerName,
+                    skills: c.skills,
+                }));
+            }
+
+            results.push({ roleName: role.roleName, requiredSkill: role.requiredSkill, matched: true, candidates });
+        }
+
+        return { projectName, results };
     },
 });

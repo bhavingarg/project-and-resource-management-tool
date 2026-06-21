@@ -23,8 +23,8 @@ export const apiClient = {
         return response.data;
     },
 
-    async post<T>(path: string, body: unknown): Promise<T> {
-        const response: AxiosResponse<T> = await httpClient.post(path, body);
+    async post<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
+        const response: AxiosResponse<T> = await httpClient.post(path, body, timeoutMs ? { timeout: timeoutMs } : undefined);
         return response.data;
     },
 

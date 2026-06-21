@@ -1,15 +1,21 @@
-import { createAiFeaturesService } from '../services/ai-features.service';
+﻿import { createAiFeaturesService } from '../services/ai-features.service';
 import { IAiRepository } from '../repositories/ai.repository';
 import { IAiService } from '../services/ai.service';
 import { ISystemConfigRepository } from '../repositories/system-config.repository';
 
 jest.mock('../config/app.config', () => ({
-    AppConfig: { geminiApiKey: 'test-gemini-key', encryptionKey: 'a'.repeat(64) },
+    AppConfig: {
+        geminiApiKey: 'test-gemini-key',
+        customLlmHost: '',
+        customLlmApiKey: '',
+        encryptionKey: 'a'.repeat(64),
+    },
 }));
 
 const makeAiRepo = (overrides: Partial<IAiRepository> = {}): IAiRepository => ({
     findSkillMatchCandidates: jest.fn().mockResolvedValue([]),
     findProjectRiskData: jest.fn().mockResolvedValue(null),
+    findAllocatedCandidatesWithSkill: jest.fn().mockResolvedValue([]),
     ...overrides,
 });
 
@@ -25,11 +31,16 @@ const makeConfigRepo = (overrides: Partial<ISystemConfigRepository> = {}): ISyst
             llm_provider: 'gemini',
             llm_model: 'gemini-1.5-flash',
             llm_api_key: '',
+            llm_host: '',
         };
         return Promise.resolve(map[key] ?? '');
     }),
     set: jest.fn(),
     ...overrides,
+});
+
+const makeCandidate = (userId: number, fullName: string, utilisationPercent: number, skills: string[]) => ({
+    userId, fullName, utilisationPercent, skills, recentActivityTags: [], currentManagerName: null,
 });
 
 describe('AiFeaturesService', () => {
@@ -41,10 +52,19 @@ describe('AiFeaturesService', () => {
             expect(result.requirement).toBe('React developer');
         });
 
+        it('returns empty when keywords are all stopwords', async () => {
+            const candidates = [makeCandidate(5, 'Alice', 50, ['React'])];
+            const svc = createAiFeaturesService(
+                makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
+                makeAiService(),
+                makeConfigRepo(),
+            );
+            const result = await svc.skillMatch(1, 'senior developer');
+            expect(result.matches).toHaveLength(0);
+        });
+
         it('calls generateText with candidates in prompt', async () => {
-            const candidates = [
-                { userId: 5, fullName: 'Alice', utilisationPercent: 50, skills: ['React'], recentActivityTags: ['frontend'] },
-            ];
+            const candidates = [makeCandidate(5, 'Alice', 50, ['React'])];
             const aiService = makeAiService(JSON.stringify([{ userId: 5, reason: 'Strong React skills' }]));
             const svc = createAiFeaturesService(
                 makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
@@ -55,36 +75,48 @@ describe('AiFeaturesService', () => {
             expect(result.matches).toHaveLength(1);
             expect(result.matches[0].userId).toBe(5);
             expect(result.matches[0].freePercent).toBe(50);
+            expect(result.matches[0].skills).toEqual(['React']);
             expect(aiService.generateText).toHaveBeenCalled();
         });
 
         it('falls back gracefully when AI returns non-JSON', async () => {
-            const candidates = [
-                { userId: 5, fullName: 'Bob', utilisationPercent: 30, skills: [], recentActivityTags: [] },
-            ];
+            const candidates = [makeCandidate(5, 'Bob', 30, ['React'])];
             const svc = createAiFeaturesService(
                 makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
                 makeAiService('Not valid JSON at all'),
                 makeConfigRepo(),
             );
-            const result = await svc.skillMatch(1, 'dev');
+            const result = await svc.skillMatch(1, 'React dev');
             expect(result.matches).toHaveLength(1);
-            expect(result.matches[0].reason).toMatch(/unavailable/i);
+            expect(result.matches[0].reason).toMatch(/most available|unavailable/i);
         });
 
         it('filters out userIds not in candidates', async () => {
-            const candidates = [
-                { userId: 5, fullName: 'Alice', utilisationPercent: 50, skills: [], recentActivityTags: [] },
-            ];
-            // AI hallucinates userId 99 which doesn't exist
+            const candidates = [makeCandidate(5, 'Alice', 50, ['React'])];
             const aiService = makeAiService(JSON.stringify([{ userId: 99, reason: 'hallucinated' }]));
             const svc = createAiFeaturesService(
                 makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
                 aiService,
                 makeConfigRepo(),
             );
-            const result = await svc.skillMatch(1, 'dev');
+            const result = await svc.skillMatch(1, 'React dev');
             expect(result.matches).toHaveLength(0);
+        });
+
+        it('only returns candidates whose skills match the keyword', async () => {
+            const candidates = [
+                makeCandidate(1, 'Alice', 20, ['React', 'TypeScript']),
+                makeCandidate(2, 'Bob', 30, ['Salesforce Developer']),
+            ];
+            const aiService = makeAiService(JSON.stringify([{ userId: 1, reason: 'Has React' }]));
+            const svc = createAiFeaturesService(
+                makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
+                aiService,
+                makeConfigRepo(),
+            );
+            const result = await svc.skillMatch(1, 'React developer');
+            expect(result.matches).toHaveLength(1);
+            expect(result.matches[0].userId).toBe(1);
         });
     });
 
@@ -128,8 +160,110 @@ describe('AiFeaturesService', () => {
             );
             await svc.getRiskSummary(1, 1);
             expect(aiService.generateText).toHaveBeenCalledWith(
-                expect.any(String), 'groq', 'llama3-8b-8192', expect.any(String),
+                expect.any(String), 'groq', 'llama3-8b-8192', expect.any(String), expect.any(String),
             );
+        });
+    });
+
+    describe('staffTeam', () => {
+        it('returns all matching candidates for a role', async () => {
+            const candidates = [
+                makeCandidate(10, 'Alice', 20, ['Java', 'Spring Boot']),
+                makeCandidate(11, 'Bob', 50, ['Java', 'Kafka']),
+            ];
+            const aiService = makeAiService(JSON.stringify([
+                { userId: 10, reason: 'Has Spring Boot expertise' },
+                { userId: 11, reason: 'Has Java and Kafka skills' },
+            ]));
+            const svc = createAiFeaturesService(
+                makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
+                aiService,
+                makeConfigRepo(),
+            );
+            const result = await svc.staffTeam([{ roleName: 'Java Developer', requiredSkill: 'Java' }]);
+            expect(result.results).toHaveLength(1);
+            expect(result.results[0].matched).toBe(true);
+            expect(result.results[0].candidates).toHaveLength(2);
+            expect(result.results[0].candidates![0].userId).toBe(10);
+            expect(result.results[0].candidates![0].skills).toEqual(['Java', 'Spring Boot']);
+            expect(result.results[0].candidates![1].userId).toBe(11);
+        });
+
+        it('same person appears in multiple roles since there is no exclusion', async () => {
+            const candidates = [makeCandidate(10, 'Alice', 20, ['Java', 'Docker'])];
+            const aiService = makeAiService(JSON.stringify([{ userId: 10, reason: 'Match' }]));
+            const svc = createAiFeaturesService(
+                makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
+                aiService,
+                makeConfigRepo(),
+            );
+            const result = await svc.staffTeam([
+                { roleName: 'Java Dev', requiredSkill: 'Java' },
+                { roleName: 'DevOps', requiredSkill: 'Docker' },
+            ]);
+            // Both roles match and Alice appears in both
+            expect(result.results.every((r) => r.matched)).toBe(true);
+            expect(result.results[0].candidates![0].userId).toBe(10);
+            expect(result.results[1].candidates![0].userId).toBe(10);
+        });
+
+        it('returns no_skill gap when no one in org has the skill', async () => {
+            const svc = createAiFeaturesService(
+                makeAiRepo({
+                    findSkillMatchCandidates: jest.fn().mockResolvedValue([]),
+                    findAllocatedCandidatesWithSkill: jest.fn().mockResolvedValue([]),
+                }),
+                makeAiService(),
+                makeConfigRepo(),
+            );
+            const result = await svc.staffTeam([{ roleName: 'Salesforce Dev', requiredSkill: 'Salesforce' }]);
+            expect(result.results[0].matched).toBe(false);
+            expect(result.results[0].gapType).toBe('no_skill');
+            expect(result.results[0].gapMessage).toMatch(/no employee/i);
+        });
+
+        it('returns all_allocated gap with availableFrom when skill exists but no one is free', async () => {
+            const svc = createAiFeaturesService(
+                makeAiRepo({
+                    findSkillMatchCandidates: jest.fn().mockResolvedValue([]),
+                    findAllocatedCandidatesWithSkill: jest.fn().mockResolvedValue([
+                        { fullName: 'Bob', availableFrom: '2026-08-01' },
+                    ]),
+                }),
+                makeAiService(),
+                makeConfigRepo(),
+            );
+            const result = await svc.staffTeam([{ roleName: 'Java Dev', requiredSkill: 'Java' }]);
+            expect(result.results[0].matched).toBe(false);
+            expect(result.results[0].gapType).toBe('all_allocated');
+            expect(result.results[0].availableFrom).toBe('2026-08-01');
+        });
+
+        it('falls back to all eligible when AI returns invalid JSON', async () => {
+            const candidates = [makeCandidate(7, 'Carol', 10, ['Python'])];
+            const svc = createAiFeaturesService(
+                makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue(candidates) }),
+                makeAiService('not json'),
+                makeConfigRepo(),
+            );
+            const result = await svc.staffTeam([{ roleName: 'Python Dev', requiredSkill: 'Python' }]);
+            expect(result.results[0].matched).toBe(true);
+            expect(result.results[0].candidates).toHaveLength(1);
+            expect(result.results[0].candidates![0].userId).toBe(7);
+            expect(result.results[0].candidates![0].reason).toMatch(/90%/);
+        });
+
+        it('passes projectName through to the response', async () => {
+            const svc = createAiFeaturesService(
+                makeAiRepo({ findSkillMatchCandidates: jest.fn().mockResolvedValue([]) }),
+                makeAiService(),
+                makeConfigRepo(),
+            );
+            const result = await svc.staffTeam(
+                [{ roleName: 'QA', requiredSkill: 'Selenium' }],
+                'Banking Portal',
+            );
+            expect(result.projectName).toBe('Banking Portal');
         });
     });
 });

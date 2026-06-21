@@ -73,9 +73,15 @@ interface EffortRow extends RowDataPacket {
     from_date: string;
 }
 
+export interface GapCandidateRecord {
+    fullName: string;
+    availableFrom: string | null; // earliest date a current allocation ends
+}
+
 export interface IAiRepository {
     findSkillMatchCandidates(): Promise<SkillMatchCandidateRecord[]>;
     findProjectRiskData(managerUserId: number, projectId: number): Promise<ProjectRiskDataRecord | null>;
+    findAllocatedCandidatesWithSkill(skillKeyword: string): Promise<GapCandidateRecord[]>;
 }
 
 export const AiRepository: IAiRepository = {
@@ -215,5 +221,36 @@ export const AiRepository: IAiRepository = {
                 allocationDate: e.from_date,
             })),
         };
+    },
+
+    async findAllocatedCandidatesWithSkill(skillKeyword: string): Promise<GapCandidateRecord[]> {
+        const pool: Pool = DatabaseConnection.getPool();
+        const kw = `%${skillKeyword}%`;
+
+        interface GapRow extends RowDataPacket {
+            full_name: string;
+            available_from: string | null;
+        }
+
+        const [rows] = await pool.execute<GapRow[]>(
+            `SELECT u.full_name,
+                    MIN(DATE_FORMAT(a.to_date, '${ISO_DATE_FORMAT}')) AS available_from
+             FROM users u
+             JOIN roles r ON r.id = u.role_id AND r.name = 'RESOURCE'
+             JOIN resource_skills rs ON rs.user_id = u.id
+             LEFT JOIN allocations a ON a.resource_id = u.id
+               AND a.is_active = 1
+               AND CURDATE() BETWEEN a.from_date AND a.to_date
+             WHERE u.is_active = 1
+               AND rs.skill_name LIKE ?
+             GROUP BY u.id, u.full_name
+             ORDER BY available_from ASC`,
+            [kw],
+        );
+
+        return rows.map((r) => ({
+            fullName: r.full_name,
+            availableFrom: r.available_from ?? null,
+        }));
     },
 };
