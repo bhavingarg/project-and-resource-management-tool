@@ -18,3 +18,4 @@ export const aiRouter = Router();
 
 aiRouter.post('/skill-match', ...managerOnly, (req, res) => aiController.skillMatch(req, res));
 aiRouter.post('/risk-summary', ...managerOnly, (req, res) => aiController.getRiskSummary(req, res));
+aiRouter.post('/staff-team', ...managerOnly, (req, res) => aiController.staffTeam(req, res));
