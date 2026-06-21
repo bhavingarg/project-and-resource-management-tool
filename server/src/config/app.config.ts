@@ -16,4 +16,10 @@ export const AppConfig = {
     customLlmHost: process.env.CUSTOM_LLM_HOST ?? '',
     customLlmApiKey: process.env.CUSTOM_LLM_API_KEY ?? '',
     encryptionKey: requireEnv('ENCRYPTION_KEY'),
+    // SMTP — all optional; when SMTP_HOST is absent, emails are printed to console.
+    smtpHost: process.env.SMTP_HOST ?? '',
+    smtpPort: Number(process.env.SMTP_PORT) || 587,
+    smtpUser: process.env.SMTP_USER ?? '',
+    smtpPass: process.env.SMTP_PASS ?? '',
+    smtpFrom: process.env.SMTP_FROM ?? 'noreply@prm.local',
 };

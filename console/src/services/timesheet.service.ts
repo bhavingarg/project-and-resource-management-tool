@@ -36,4 +36,8 @@ export const timesheetApiService = {
     async getTeamMemberWeekDetail(userId: number, weekStartDate: string): Promise<TimesheetDetailDto> {
         return apiClient.get<TimesheetDetailDto>(`/timesheets/team/${userId}/${weekStartDate}`);
     },
+
+    async unfreezeEmployee(userId: number): Promise<void> {
+        await apiClient.post(`/timesheets/team/${userId}/unfreeze`, {});
+    },
 };

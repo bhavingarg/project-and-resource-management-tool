@@ -72,4 +72,13 @@ export const createTimesheetController = (timesheetService: ITimesheetService) =
             res.status(404).json({ message: (error as Error).message });
         }
     },
+
+    async unfreezeEmployee(req: Request, res: Response): Promise<void> {
+        try {
+            await timesheetService.unfreezeEmployee(req.user!.userId, Number(req.params.userId));
+            res.status(200).json({ message: 'Timesheet access restored.' });
+        } catch (error) {
+            res.status(400).json({ message: (error as Error).message });
+        }
+    },
 });

@@ -31,6 +31,7 @@ export interface ITimesheetService {
     getTeamTimesheets(managerUserId: number, weekStartDate: string): Promise<TeamTimesheetRowDto[]>;
     getTeamMemberWeekDetail(managerUserId: number, userId: number, weekStartDate: string): Promise<TimesheetDetailDto>;
     getReminder(userId: number): Promise<TimesheetReminderDto>;
+    unfreezeEmployee(managerUserId: number, targetUserId: number): Promise<void>;
 }
 
 export const createTimesheetService = (
@@ -45,6 +46,11 @@ export const createTimesheetService = (
     },
 
     async submitTimesheet(userId: number, dto: SubmitTimesheetRequestDto): Promise<void> {
+        const frozen = await timesheetRepository.isFrozen(userId);
+        if (frozen) {
+            throw new Error('Your timesheet access is frozen. Please contact your manager to restore access.');
+        }
+
         if (!ISO_DATE_PATTERN.test(dto.weekStartDate) || !isMonday(dto.weekStartDate)) {
             throw new Error('weekStartDate must be a valid Monday in YYYY-MM-DD format');
         }
@@ -124,5 +130,13 @@ export const createTimesheetService = (
 
     async getReminder(userId: number): Promise<TimesheetReminderDto> {
         return timesheetRepository.getReminderInfo(userId, getLastWeekMonday());
+    },
+
+    async unfreezeEmployee(managerUserId: number, targetUserId: number): Promise<void> {
+        const isTeamMember = await timesheetRepository.isManagerOf(managerUserId, targetUserId);
+        if (!isTeamMember) {
+            throw new Error('Employee is not on your team');
+        }
+        await timesheetRepository.unfreezeEmployee(targetUserId, managerUserId);
     },
 });

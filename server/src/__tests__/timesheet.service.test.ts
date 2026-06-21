@@ -10,6 +10,9 @@ const makeRepo = (overrides: Partial<ITimesheetRepository> = {}): ITimesheetRepo
     findTeamTimesheets: jest.fn(),
     findTeamMemberWeekDetail: jest.fn(),
     getReminderInfo: jest.fn(),
+    isFrozen: jest.fn().mockResolvedValue(false),
+    isManagerOf: jest.fn().mockResolvedValue(true),
+    unfreezeEmployee: jest.fn().mockResolvedValue(undefined),
     ...overrides,
 });
 
