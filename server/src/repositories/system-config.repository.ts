@@ -10,23 +10,23 @@ const ENCRYPTED_KEYS = new Set(['llm_api_key']);
 const DEFAULT_CONFIG: { key: string; value: string; description: string }[] = [
     {
         key: 'llm_provider',
-        value: 'gemini',
-        description: 'LLM provider for AI features. Allowed values: gemini, groq, custom',
+        value: 'custom',
+        description: 'LLM provider for AI features. Allowed values: gemini, groq, custom (Ollama)',
     },
     {
         key: 'llm_api_key',
         value: '',
-        description: 'API key for the selected LLM provider (optional for custom/local providers)',
+        description: 'API key for the selected LLM provider (not required for local Ollama)',
     },
     {
         key: 'llm_model',
-        value: 'gemini-3.5-flash',
-        description: 'Model name passed to the selected LLM provider (e.g. gemini-3.5-flash, llama3-8b-8192, gemma)',
+        value: 'gemma3:12b-it-q8_0',
+        description: 'Model name passed to the selected LLM provider (e.g. gemma3:12b-it-q8_0)',
     },
     {
         key: 'llm_host',
-        value: '',
-        description: 'Host endpoint URL for custom LLM provider (Ollama-compatible, e.g. http://host/api/generate)',
+        value: 'http://164.52.211.238/api/generate',
+        description: 'Host endpoint URL for custom LLM provider (Ollama-compatible)',
     },
     {
         key: 'scheduler_interval_hours',

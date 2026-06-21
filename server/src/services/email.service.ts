@@ -11,6 +11,14 @@ export interface IEmailService {
         managerName: string,
         weekStartDate: string,
     ): Promise<void>;
+    sendAtRiskNotification(
+        managerEmail: string,
+        managerName: string,
+        projectName: string,
+        milestones: { title: string; dueDate: string; status: string; isOverdue: boolean }[],
+        riskSummary: string,
+        suggestedHelp: { fullName: string; freePercent: number; skills: string[] }[],
+    ): Promise<void>;
 }
 
 const sendMail = async (
@@ -84,5 +92,44 @@ export const EmailService: IEmailService = {
             sendMail(employeeEmail, 'Timesheet Access Frozen', employeeMessage),
             sendMail(managerEmail, `Timesheet Access Frozen — ${employeeName}`, managerMessage),
         ]);
+    },
+
+    async sendAtRiskNotification(managerEmail, managerName, projectName, milestones, riskSummary, suggestedHelp): Promise<void> {
+        const milestoneLines = milestones.length > 0
+            ? milestones.map((m) =>
+                `  • ${m.title} — due ${m.dueDate} [${m.status}]${m.isOverdue ? ' ⚠ OVERDUE' : ''}`,
+            ).join('\n')
+            : '  (no milestones defined)';
+
+        const helpLines = suggestedHelp.length > 0
+            ? suggestedHelp.map((h) =>
+                `  • ${h.fullName} — ${h.freePercent}% free` +
+                (h.skills.length > 0 ? `  |  Skills: ${h.skills.join(', ')}` : ''),
+            ).join('\n')
+            : '  (no bench employees available)';
+
+        const message =
+            `Hi ${managerName},\n\n` +
+            `The project "${projectName}" has been flagged as AT RISK by the automated health check.\n\n` +
+            `─────────────────────────────────\n` +
+            `HEALTH STATUS\n` +
+            `─────────────────────────────────\n` +
+            `Current standing: AT_RISK\n\n` +
+            `─────────────────────────────────\n` +
+            `KEY MILESTONES\n` +
+            `─────────────────────────────────\n` +
+            `${milestoneLines}\n\n` +
+            `─────────────────────────────────\n` +
+            `AI RISK SUMMARY\n` +
+            `─────────────────────────────────\n` +
+            `${riskSummary}\n\n` +
+            `─────────────────────────────────\n` +
+            `SUGGESTED HELP — Available employees who could reduce the risk\n` +
+            `─────────────────────────────────\n` +
+            `${helpLines}\n\n` +
+            `Please log in to the PRM portal to review and take action.\n\n` +
+            `PRM System`;
+
+        await sendMail(managerEmail, `⚠ Project At-Risk Alert: ${projectName}`, message);
     },
 };

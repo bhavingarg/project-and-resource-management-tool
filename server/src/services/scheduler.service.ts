@@ -1,5 +1,6 @@
 import { ISchedulerRepository } from '../repositories/scheduler.repository';
 import { IEmailService } from './email.service';
+import { IAiFeaturesService } from './ai-features.service';
 import { AppConfig } from '../config/app.config';
 import { getLastWeekMonday, getDaysSinceDate } from '../utils/date.util';
 
@@ -19,6 +20,7 @@ export interface ISchedulerService {
 export const createSchedulerService = (
     schedulerRepository: ISchedulerRepository,
     emailService: IEmailService,
+    aiFeaturesService: IAiFeaturesService,
 ): ISchedulerService => ({
     async runAllTasks(): Promise<void> {
         const lastWeekMonday = getLastWeekMonday();
@@ -35,6 +37,7 @@ export const createSchedulerService = (
         );
         console.log(`[Scheduler] Updated health for ${projectsUpdated} active project(s).`);
 
+        await this.processAtRiskNotifications();
         await this.processTimesheetNotifications(lastWeekMonday);
     },
 
@@ -104,4 +107,49 @@ export const createSchedulerService = (
             }
         }
     },
-} as ISchedulerService & { processTimesheetNotifications(week: string): Promise<void> });
+
+    async processAtRiskNotifications(): Promise<void> {
+        // Reset the notification flag for projects that are no longer AT_RISK
+        // so the next AT_RISK transition triggers a fresh email.
+        await schedulerRepository.resetAtRiskNotifiedForHealthyProjects();
+
+        const projects = await schedulerRepository.findNewlyAtRiskProjects();
+        if (projects.length === 0) return;
+
+        for (const project of projects) {
+            try {
+                // Mark as notified first to prevent duplicate sends on crash/restart.
+                await schedulerRepository.markAtRiskNotified(project.projectId);
+
+                const [milestones, suggestedHelp] = await Promise.all([
+                    schedulerRepository.findProjectMilestones(project.projectId),
+                    schedulerRepository.findSuggestedHelpForProject(project.projectId),
+                ]);
+
+                let riskSummary = 'This project has been flagged as AT_RISK based on missed milestones or under-allocation. Please review the project status and take corrective action.';
+                try {
+                    const riskResult = await aiFeaturesService.getRiskSummary(project.managerId, project.projectId);
+                    riskSummary = riskResult.summary;
+                } catch (aiErr) {
+                    console.warn(`[Scheduler] AI risk summary unavailable for project ${project.projectName}, using default.`);
+                }
+
+                await emailService.sendAtRiskNotification(
+                    project.managerEmail,
+                    project.managerName,
+                    project.projectName,
+                    milestones,
+                    riskSummary,
+                    suggestedHelp,
+                );
+
+                console.log(`[Scheduler] At-risk notification sent → ${project.managerEmail} (project: ${project.projectName})`);
+            } catch (err) {
+                console.error(`[Scheduler] Failed to send at-risk notification for project ${project.projectName}:`, err);
+            }
+        }
+    },
+} as ISchedulerService & {
+    processTimesheetNotifications(week: string): Promise<void>;
+    processAtRiskNotifications(): Promise<void>;
+});
