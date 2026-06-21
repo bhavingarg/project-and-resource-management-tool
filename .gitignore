@@ -20,3 +20,9 @@ Thumbs.db
 # IDE
 .vscode/settings.json
 .idea/
+
+# Test coverage reports
+server/coverage/
+
+# Temporary dev/debug scripts
+server/scripts/check_lakshit.ts

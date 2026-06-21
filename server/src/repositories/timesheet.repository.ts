@@ -20,6 +20,9 @@ export interface ITimesheetRepository {
     findTeamTimesheets(managerUserId: number, weekStartDate: string): Promise<TeamTimesheetRowDto[]>;
     findTeamMemberWeekDetail(managerUserId: number, userId: number, weekStartDate: string): Promise<TimesheetDetailDto | null>;
     getReminderInfo(userId: number, lastWeekMonday: string): Promise<TimesheetReminderDto>;
+    isFrozen(userId: number): Promise<boolean>;
+    isManagerOf(managerUserId: number, targetUserId: number): Promise<boolean>;
+    unfreezeEmployee(userId: number, restoredBy: number): Promise<void>;
 }
 
 interface ActiveAllocationRow extends RowDataPacket {
@@ -49,6 +52,7 @@ interface TeamTimesheetRow extends RowDataPacket {
     project_name: string;
     hours_worked: number;
     status: 'SUBMITTED' | 'MISSED';
+    is_frozen: number;
 }
 
 interface CountRow extends RowDataPacket {
@@ -180,7 +184,8 @@ export const TimesheetRepository: ITimesheetRepository = {
             `SELECT u.id AS user_id, u.full_name AS resource_name,
                     p.name AS project_name,
                     COALESCE(t.hours_worked, 0) AS hours_worked,
-                    CASE WHEN t.id IS NULL OR t.status = 'MISSED' THEN 'MISSED' ELSE 'SUBMITTED' END AS status
+                    CASE WHEN t.id IS NULL OR t.status = 'MISSED' THEN 'MISSED' ELSE 'SUBMITTED' END AS status,
+                    COALESCE(rp.timesheet_frozen, 0) AS is_frozen
              FROM allocations a
              JOIN users u ON a.resource_id = u.id
              JOIN resource_profiles rp ON rp.user_id = u.id
@@ -198,6 +203,7 @@ export const TimesheetRepository: ITimesheetRepository = {
             projectName: row.project_name,
             hoursWorked: Number(row.hours_worked),
             status: row.status,
+            isFrozen: row.is_frozen === 1,
         }));
     },
 
@@ -237,5 +243,55 @@ export const TimesheetRepository: ITimesheetRepository = {
             [userId, lastWeekMonday, lastWeekMonday, lastWeekMonday],
         );
         return { isMissing: rows[0].count > 0, weekStartDate: lastWeekMonday };
+    },
+
+    async isFrozen(userId: number): Promise<boolean> {
+        const pool: Pool = DatabaseConnection.getPool();
+        const [rows] = await pool.execute<RowDataPacket[]>(
+            `SELECT timesheet_frozen FROM resource_profiles WHERE user_id = ?`,
+            [userId],
+        );
+        return rows.length > 0 && rows[0].timesheet_frozen === 1;
+    },
+
+    async isManagerOf(managerUserId: number, targetUserId: number): Promise<boolean> {
+        const pool: Pool = DatabaseConnection.getPool();
+        const [rows] = await pool.execute<RowDataPacket[]>(
+            `SELECT 1 FROM resource_profiles WHERE user_id = ? AND reporting_to = ?`,
+            [targetUserId, managerUserId],
+        );
+        return rows.length > 0;
+    },
+
+    /**
+     * Clears the freeze flag on resource_profiles and records the restore event
+     * on the most recent unfulfilled timesheet_reminders row for this user.
+     */
+    async unfreezeEmployee(userId: number, restoredBy: number): Promise<void> {
+        const pool: Pool = DatabaseConnection.getPool();
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            await connection.execute(
+                `UPDATE resource_profiles SET timesheet_frozen = 0 WHERE user_id = ?`,
+                [userId],
+            );
+            await connection.execute(
+                `UPDATE timesheet_reminders
+                 SET restored_at = NOW(), restored_by = ?
+                 WHERE user_id = ?
+                   AND frozen_at IS NOT NULL
+                   AND restored_at IS NULL
+                 ORDER BY frozen_at DESC
+                 LIMIT 1`,
+                [restoredBy, userId],
+            );
+            await connection.commit();
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     },
 };

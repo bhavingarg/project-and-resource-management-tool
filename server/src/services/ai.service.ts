@@ -34,10 +34,11 @@ export const createAiService = (): IAiService => ({
 
         if (provider === 'custom') {
             if (!host) throw new Error('custom LLM provider requires llm_host to be configured in System Config');
-            const url = apiKey ? `${host}?apikey=${encodeURIComponent(apiKey)}` : host;
-            const response = await fetch(url, {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (apiKey) headers['apikey'] = apiKey;
+            const response = await fetch(host, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ model: modelName, prompt, stream: false }),
             });
             if (!response.ok) {

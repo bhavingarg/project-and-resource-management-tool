@@ -22,3 +22,4 @@ timesheetRouter.get('/mine', ...resourceOnly, (req, res) => timesheetController.
 timesheetRouter.get('/mine/:weekStartDate', ...resourceOnly, (req, res) => timesheetController.getMyWeekDetail(req, res));
 timesheetRouter.get('/team', ...managerOnly, (req, res) => timesheetController.getTeamTimesheets(req, res));
 timesheetRouter.get('/team/:userId/:weekStartDate', ...managerOnly, (req, res) => timesheetController.getTeamMemberWeekDetail(req, res));
+timesheetRouter.post('/team/:userId/unfreeze', ...managerOnly, (req, res) => timesheetController.unfreezeEmployee(req, res));

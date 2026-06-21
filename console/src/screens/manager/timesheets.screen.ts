@@ -12,12 +12,16 @@ const printTeamTable = (rows: TeamTimesheetRowDto[]): void => {
     console.log(`  ${'Employee'.padEnd(20)} ${'Project'.padEnd(20)} ${'Hrs'.padEnd(6)} Status`);
     console.log(SEP);
     for (const row of rows) {
-        const flag = row.status === 'MISSED' ? '  ⚠' : '';
+        const flag = row.isFrozen ? ' 🔒' : row.status === 'MISSED' ? '  ⚠' : '';
         console.log(
             `  ${row.resourceName.padEnd(20)} ${row.projectName.padEnd(20)} ${String(row.hoursWorked).padEnd(6)} ${row.status}${flag}`,
         );
     }
     console.log(SEP);
+    const frozenCount = new Set(rows.filter((r) => r.isFrozen).map((r) => r.userId)).size;
+    if (frozenCount > 0) {
+        console.log(`\n  🔒 = Timesheet access frozen  (use [F] to restore)`);
+    }
 };
 
 export const ManagerTimesheetsScreen = {
@@ -44,7 +48,7 @@ export const ManagerTimesheetsScreen = {
                 printTeamTable(rows);
             }
 
-            console.log('\n  [V] View employee detail     [R] Change week     [B] Back');
+            console.log('\n  [V] View employee detail     [R] Change week     [F] Unfreeze employee     [B] Back');
             const choice = (await prompt('  Select: ')).trim().toUpperCase();
 
             if (choice === 'B') return;
@@ -57,6 +61,23 @@ export const ManagerTimesheetsScreen = {
                     continue;
                 }
                 weekStartDate = parsed;
+                continue;
+            }
+
+            if (choice === 'F') {
+                const idInput = (await prompt('  Enter Employee User ID to unfreeze: ')).trim();
+                const userId = Number(idInput);
+                if (!idInput || Number.isNaN(userId)) {
+                    console.log('  Invalid user ID.');
+                    continue;
+                }
+                try {
+                    await timesheetApiService.unfreezeEmployee(userId);
+                    console.log(`\n  ✔ Timesheet access restored for user ${userId}.`);
+                } catch (error) {
+                    console.log(`\n  Error: ${extractErrorMessage(error)}`);
+                }
+                await prompt('\n  Press Enter to continue...');
                 continue;
             }
 

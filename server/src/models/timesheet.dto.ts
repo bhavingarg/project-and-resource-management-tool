@@ -47,4 +47,5 @@ export interface TeamTimesheetRowDto {
     projectName: string;
     hoursWorked: number;
     status: 'SUBMITTED' | 'MISSED';
+    isFrozen: boolean;
 }
